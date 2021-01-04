@@ -56,7 +56,7 @@ dat$pop <- rownames(eq2019)
 
 
 
-
+dat
 
 
 

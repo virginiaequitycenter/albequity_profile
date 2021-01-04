@@ -66,7 +66,7 @@ acs1_dp_labels <-
 rename(variable = name)
 
 
-alb_demographi_profile_2011_2019 <-
+alb_demographic_profile_2011_2019 <-
 demographic_tables %>%
   left_join(acs1_dp_labels) %>%
   separate(label,
@@ -111,7 +111,20 @@ demographic_tables %>%
   ) %>% 
   select(variable, estimate, moe, year, category, final_level ) 
 
+View(alb_demographic_profile_2011_2019)
 
+alb_demographic_table <-
+alb_demographic_profile_2011_2019 %>%
+  select(-moe, - variable) %>%
+  distinct() %>%
+  spread(year, estimate) #%>%
+ # select(-category) %>%
+ # distinct()
+
+alb_demographic_table %>% View()
+  
+
+write_csv(alb_demographic_table, path  = "demographic_table.csv")
 # Table 1: AHDI -----------------------------------------------------------
 # How to Calculate HDI
 # http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
@@ -319,6 +332,9 @@ table1_dat %>%
   select(fips, county, everything(), -state)
 
 
+table1_final
+
+
 
 # Racially Disaggregated AHDI in Albemarle --------------------------------
 
@@ -334,7 +350,168 @@ life_expectancies %>%
 
 # "hs_grad", "bac_deg", "grad_deg"
 
-# These do not have most races in them
+# These do not have most races in them. Just Black & White
+race_disag_ed_1B <-
+  map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+cleaned_white_black_ahdi_ed <-
+race_disag_ed_1B %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
+  mutate(
+    Sex = case_when(is.na(Sex) ~ "Both",
+                    TRUE ~ Sex),
+    
+    Level = case_when(is.na(Level)  ~ "All",
+                      TRUE ~ Level)
+  ) %>%
+  separate(concept, c(NA, "Race"), sep = "\\(") %>%
+  mutate(Race = str_replace_all(Race, "\\)", ""))  %>%
+  select(-Estimate, -Total) %>%
+  mutate(
+    Total = case_when(
+      Sex == "Both" & Level == "All" ~ estimate,
+      TRUE ~ 0
+    )  
+  ) %>%
+  group_by(Race) %>%
+  mutate(Total = sum(Total))  %>% 
+  group_by(Race, Level) %>%
+  summarize(estimate = sum(estimate, na.rm = TRUE), Total = min(Total, na.rm = TRUE)) %>% 
+  filter(estimate > 0) %>%
+  filter(!Level %in% c("All")) %>%
+  mutate(pct = estimate/Total * 100) %>%
+ # mutate(pct = paste0( round(estimate/Total * 100, 2), "%")) %>%
+  select(-estimate, -Total) %>%
+  spread(Level, pct) %>%
+  mutate(hs_grad = `Graduate or professional degree` + `Bachelor's degree` + `Associate's degree` + `Some college, no degree` + `GED or alternative credential` + `Regular high school diploma`,
+         bac_deg = `Graduate or professional degree` + `Bachelor's degree`,
+         grad_deg = `Graduate or professional degree`) %>%
+  select(Race, hs_grad, bac_deg, grad_deg)
+
+cleaned_white_black_ahdi_ed
+
+# Just need black & white enrollment
+
+## Getting the right age-grouped numerators is not a super viable option for race -- uggh. 
+alb_race_enroll <- get_acs(geography = "county", 
+                         table = "C14007A", 
+                         state = "VA", 
+                         county = "003", 
+                         survey = "acs1", 
+                         year = 2019, 
+                         cache_table = TRUE) 
+
+
+
+
+
+
+
+
+
+# Tract Level AHDI Within Albemarle ---------------------------------------
+
+# Tract Level Life Expectancym
+# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/XLSX/VA_A.XLSX"
+# destfile <- "tract_expectancy.xlsx"
+# download.file(url, destfile)
+
+tract_expectancy_load <- read_excel("tract_expectancy.xlsx")
+
+tract_expectancy <- 
+  tract_expectancy_load %>%
+  rename_with(
+    ~tolower(
+      str_replace_all(.x, 
+                      " ", "_")
+    )    
+  ) %>%
+  rename(GEOID = tract_id, state_fips = state2kx, county_fips = cnty2kx, tract_fips = tract2kx, life_expectancy = `e(0)`, se = `se(e(0))` ) %>%
+  select(-abridged_life_table_flag) %>%
+  mutate(fips = paste0(state_fips, county_fips)) %>%
+  filter(county_fips == "003")
+
+# Personal Earnings, HS Grad, Bac Degree, Grad Degree
+tract_facts <- get_acs(geography = "tract",
+                       variables = tab1_labs$variable,
+                       state = "VA", 
+                       county = "003", 
+                       survey = "acs5",
+                       year = 2019) %>%
+  select(GEOID, NAME, variable, estimate) %>%
+  left_join(tab1_labs)
+
+
+# School enrollment
+tract_enroll <- get_acs(geography = "tract", 
+                        table = "S1401", 
+                        state = "VA", 
+                        county = "003", 
+                        survey = "acs5", 
+                        year = 2019, 
+                        cache_table = TRUE)
+
+
+# Tract Level School Enrollment Data
+tract_schl_num <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_num = sum(estimate), 
+            schl_numM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_den <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_013", "S1401_C01_015", "S1401_C01_017", "S1401_C01_019", "S1401_C01_021", "S1401_C01_023")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_den = sum(estimate), 
+            schl_denM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_ratio <- left_join(tract_schl_num, tract_schl_den)
+
+tract_schl <- tract_schl_ratio %>% 
+  summarize(schlE = round((schl_num/schl_den)*100, 1),
+            schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
+            schlM = round(schlM*100,1)) %>%
+  select(GEOID, school_enroll = schlE)
+
+
+# Put it all together
+tract_ahdi <-
+  tract_facts %>%
+  select(-variable) %>%
+  spread(label, estimate) %>%
+  select(-NAME) %>%
+  left_join(tract_expectancy %>%
+              select(GEOID, life_exp = life_expectancy)
+  ) %>% 
+  left_join(tract_schl) %>%
+  mutate(
+    ahdi_health = (life_exp - 66)/ (90-66)*10,
+    ahdi_ed_attainment = ((hs_grad/100 + bac_deg/100 + grad_deg/100) - .5)/(2 - .5)*10,
+    ahdi_ed_enroll = (school_enroll - 60)/(95 - 60) *10,
+    ahdi_ed = (2*ahdi_ed_attainment/3) + (ahdi_ed_enroll/3),
+    ahdi_income  = (log10(pers_earn)  -  log10(17234.09))   /(log10(72914) - log10(17234.09)) * 10
+  ) %>%
+  mutate(
+    ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3  ) 
+
+
+tract_ahdi
+
+
+
+
+# Education Section -------------------------------------------------------
+
+# These do not have most races in them. Just Black & White
 race_disag_ed_1B <-
   map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
          ~ get_acs(geography = "county",
@@ -360,7 +537,7 @@ race_disag_ed_1C <-
   )
 
 
-# "K201501" # Supplemental table 1
+# "K201501" # Supplemental table 1 - tidycensus will not pull
 race_disag_ed_1K <-
   map_df(c( "K201501B"),
          ~ get_acs(geography = "county",
@@ -399,6 +576,7 @@ race_disag_ed_5C <-
   )
 
 ## This does not have graduate level and above in it. We need something better from somewhere
+ed_table <-
 race_disag_ed_5C %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
@@ -423,99 +601,13 @@ race_disag_ed_5C %>%
   group_by(Race, Level) %>%
   summarize(estimate = sum(estimate), Total = min(Total)) %>% 
  filter(!Level %in% c("All")) %>%
-  mutate(pct = estimate/Total * 100)
-  
-
+  mutate(pct = estimate/Total * 100) %>%
   mutate(pct = paste0( round(estimate/Total * 100, 2), "%")) %>%
   select(-estimate, -Total) %>%
   spread(Level, pct)
 
-
-# Tract Level AHDI Within Albemarle ---------------------------------------
-
-# Tract Level Life Expectancym
-# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/XLSX/VA_A.XLSX"
-# destfile <- "tract_expectancy.xlsx"
-# download.file(url, destfile)
-
-tract_expectancy_load <- read_excel("tract_expectancy.xlsx")
-
-tract_expectancy <- 
-  tract_expectancy_load %>%
-  rename_with(
-    ~tolower(
-      str_replace_all(.x, 
-                      " ", "_")
-    )    
-  ) %>%
-  rename(GEOID = tract_id, state_fips = state2kx, county_fips = cnty2kx, tract_fips = tract2kx, life_expectancy = `e(0)`, se = `se(e(0))` ) %>%
-  select(-abridged_life_table_flag) %>%
-  mutate(fips = paste0(state_fips, county_fips)) %>%
-  filter(county_fips == "003")
-
-# Personal Earnings, HS Grad, Bac Degree, Grad Degree
-tract_facts <- get_acs(geography = "tract",
-                        variables = tab1_labs$variable,
-                        state = "VA", 
-                        county = "003", 
-                        survey = "acs5",
-                        year = 2019) %>%
-                    select(GEOID, NAME, variable, estimate) %>%
-                    left_join(tab1_labs)
-
-
-# School enrollment
-tract_enroll <- get_acs(geography = "tract", 
-                         table = "S1401", 
-                         state = "VA", 
-                         county = "003", 
-                         survey = "acs5", 
-                         year = 2019, 
-                         cache_table = TRUE)
-
-
-# Tract Level School Enrollment Data
-tract_schl_num <- tract_enroll %>% 
-  filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
-  group_by(GEOID, NAME) %>% 
-  summarize(schl_num = sum(estimate), 
-            schl_numM = moe_sum(moe = moe, estimate = estimate))
-
-tract_schl_den <- tract_enroll %>% 
-  filter(variable %in% c("S1401_C01_013", "S1401_C01_015", "S1401_C01_017", "S1401_C01_019", "S1401_C01_021", "S1401_C01_023")) %>% 
-  group_by(GEOID, NAME) %>% 
-  summarize(schl_den = sum(estimate), 
-            schl_denM = moe_sum(moe = moe, estimate = estimate))
-
-tract_schl_ratio <- left_join(tract_schl_num, tract_schl_den)
-
-tract_schl <- tract_schl_ratio %>% 
-  summarize(schlE = round((schl_num/schl_den)*100, 1),
-            schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
-            schlM = round(schlM*100,1)) %>%
-  select(GEOID, school_enroll = schlE)
-
-
-# Put it all together
-tract_ahdi <-
-tract_facts %>%
-select(-variable) %>%
-  spread(label, estimate) %>%
-  select(-NAME) %>%
-  left_join(tract_expectancy %>%
-              select(GEOID, life_exp = life_expectancy)
-              ) %>% 
-  left_join(tract_schl) %>%
-  mutate(
-    ahdi_health = (life_exp - 66)/ (90-66)*10,
-    ahdi_ed_attainment = ((hs_grad/100 + bac_deg/100 + grad_deg/100) - .5)/(2 - .5)*10,
-    ahdi_ed_enroll = (school_enroll - 60)/(95 - 60) *10,
-    ahdi_ed = (2*ahdi_ed_attainment/3) + (ahdi_ed_enroll/3),
-    ahdi_income  = (log10(pers_earn)  -  log10(17234.09))   /(log10(72914) - log10(17234.09)) * 10
-  ) %>%
-  mutate(
-    ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3  ) 
-  
+names(ed_table)
+ed_table
 
 
 
