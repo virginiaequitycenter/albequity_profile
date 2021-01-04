@@ -31,8 +31,85 @@ select <- dplyr::select
 # Tract Level Life Expectancy: https://www.cdc.gov/nchs/nvss/usaleep/usaleep.html <- use this for life expectancy for the tract disaggregated AHDI
 # County Level Life Expectancy:  https://www.countyhealthrankings.org/app/virginia/2020/measure/outcomes/147/data
 
+acs1 <- load_variables(2019, "acs1", cache = TRUE)
 acs1_2019 <- load_variables(2019, "acs1/subject", cache = TRUE)
 View(acs1_2019)
+acs1_2019_prof <- load_variables(2019, "acs1/profile", cache = TRUE)
+View(acs1_2019_prof)
+
+
+
+# Full Census Demographic Breakdown of Albemarle --------------------------
+
+demographic_tables <-
+  map_df(2019:2011,
+         ~ get_acs(
+           year = .x,
+           geography = "county",
+           state = "VA",
+           county = "003",
+           # variables =  race_vars$variable,
+           table = "DP05",
+           survey = "acs1", 
+           cache = TRUE
+         ) %>%
+           mutate(year = .x)
+  )
+
+acs1_dp_labels <- 
+  map_df(2019:2011,
+        ~ load_variables(.x, 
+                         "acs1/profile", 
+                         cache = TRUE) %>%
+          mutate(year = .x)
+         ) %>%
+rename(variable = name)
+
+
+alb_demographi_profile_2011_2019 <-
+demographic_tables %>%
+  left_join(acs1_dp_labels) %>%
+  separate(label,
+           c("stat", "category", "group", "level", "restriction", "etc"),
+           sep = "!!") %>%
+  filter(stat == "Percent") %>%
+  filter(!is.na(estimate)) %>%
+  mutate(
+    final_level =
+      case_when(
+        category == "SEX AND AGE" &
+            group == "Total population" & !is.na(level) ~ level,
+        category == "SEX AND AGE"  ~ group,
+        category == "RACE" & group == "Total population" & level == "One race" & !is.na(restriction) & is.na(etc) ~ restriction,
+        category == "RACE" & group == "One race" & !is.na(level) & is.na(restriction) ~ level,
+        category == "RACE" & group == "Total population" & level == "Two or more races" & is.na(restriction)  ~ level,
+        category == "RACE" & group == "Two or more races" & is.na(level)  ~ group,
+        category == "HISPANIC OR LATINO AND RACE" & group == "Total population" & !is.na(level) & is.na(restriction) ~ level,
+        category == "HISPANIC OR LATINO AND RACE" & !is.na(group)  & is.na(level) ~ group,
+        
+        
+        TRUE ~ NA_character_
+        
+      )
+  ) %>%
+  filter(
+    !final_level %in% c(
+      "Under 18 years",
+      "16 years and over",
+      "18 years and over",
+      "21 years and over",
+      "62 years and over",
+      "65 years and over"
+    ),
+    !is.na(final_level),
+    !variable %in% c(
+      "DP05_0023P",
+      "DP05_0024P",
+      "DP05_0026P",
+      "DP05_0027P"
+    )
+  ) %>% 
+  select(variable, estimate, moe, year, category, final_level ) 
 
 
 # Table 1: AHDI -----------------------------------------------------------
@@ -250,28 +327,108 @@ le_alb <-
 life_expectancies %>%
   filter(county == "Albemarle")
 
+# We might only get differential life expectancy tbh
 
-# Personal Earnings, HS graduate, bachelors degree, grad degree
+# Racially Disaggregated Educational Achievement 
+# Need to use the 5 year estimates for this one. 
 
-tibble(
-  variable = c("S2001_C01_002",
-               "S1501_C02_014",
-               "S1501_C02_015",
-               "S1501_C02_013"
-  ),
-  label = c("pers_earn",  "hs_grad", "bac_deg", "grad_deg")
-)
+# "hs_grad", "bac_deg", "grad_deg"
+
+# These do not have most races in them
+race_disag_ed_1B <-
+  map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
 
 
-school_enroll_race <- 
-  v19 %>%
-  filter(
-    label %in% c("Estimate!!Total:!!Enrolled in school:")     
+# These do not have the Grad degrees in them Still missing some data 
+race_disag_ed_1C <-
+  map_df(c("C15002A","C15002B", "C15002C", "C15002D", "C15002E", "C15002F", "C15002G", "C15002H", "C15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+
+# "K201501" # Supplemental table 1
+race_disag_ed_1K <-
+  map_df(c( "K201501B"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  #%>%
+         #  left_join(acs1 %>% rename(variable = name))
+  )
+
+
+# These do not exist???
+race_disag_ed_5B <-
+  map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs5",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+
+# No Grad, but All races. 
+race_disag_ed_5C <-
+  map_df(c("C15002A","C15002B", "C15002C", "C15002D", "C15002E", "C15002F", "C15002G", "C15002H", "C15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs5",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+## This does not have graduate level and above in it. We need something better from somewhere
+race_disag_ed_5C %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
+  mutate(
+    Sex = case_when(is.na(Sex) ~ "Both",
+                    TRUE ~ Sex),
+    
+    Level = case_when(is.na(Level)  ~ "All",
+                      TRUE ~ Level)
   ) %>%
-  filter(grepl("B14", name))  %>%
-  pull(name)
+  separate(concept, c(NA, "Race"), sep = "\\(") %>%
+  mutate(Race = str_replace_all(Race, "\\)", ""))  %>%
+  select(-Estimate, -Total) %>%
+  mutate(
+    Total = case_when(
+      Sex == "Both" & Level == "All" ~ estimate,
+      TRUE ~ 0
+                    )  
+  ) %>%
+  group_by(Race) %>%
+  mutate(Total = sum(Total))  %>% 
+  group_by(Race, Level) %>%
+  summarize(estimate = sum(estimate), Total = min(Total)) %>% 
+ filter(!Level %in% c("All")) %>%
+  mutate(pct = estimate/Total * 100)
+  
 
-
+  mutate(pct = paste0( round(estimate/Total * 100, 2), "%")) %>%
+  select(-estimate, -Total) %>%
+  spread(Level, pct)
 
 
 # Tract Level AHDI Within Albemarle ---------------------------------------
@@ -360,27 +517,134 @@ select(-variable) %>%
     ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3  ) 
   
 
-# Pull racial breakdowns 2000 - 2019
-# Pull Ethnicity breakdowsn 2000 - 2019
 
+
+# Racial Breakdowns -------------------------------------------------------
+# Pull racial breakdowns 2010 - 2019
+# Percent White Alone: DP05_0077P
+# Percent Black or AA Alone: DP05_0078P
+# Percent American Indian and Alaska Native alone -- DP05_0079P
+# Percent Asian alone -- DP05_0080P
+# Percent Native Hawaiian and Other Pacific Islander alone -- DP05_0081P
+# Percent Some other race alone -- DP05_0082P
+# Percent Two or more races -- DP05_0083P
+
+race_vars_2019 <- 
+  tibble(
+    race = c("white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
+    variable = c("DP05_0077P", "DP05_0078P", "DP05_0079P", "DP05_0080P", "DP05_0081P", "DP05_0082P", "DP05_0083P"  )
+  )
+
+
+race_data <-
+map_df(2019:2017,
+~ get_acs(
+  year = .x,
+  geography = "county",
+  state = "VA",
+  county = "003",
+  variables =  race_vars$variable,
+  survey = "acs1", 
+  cache = TRUE
+) %>%
+  select(GEOID, NAME, variable, estimate) %>%
+  left_join(race_vars_2019) %>%
+  mutate(year = .x)
+)
+
+
+
+race_vars_2016 <- 
+  tibble(
+    race = c("white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
+    variable = c("DP05_0077P", "DP05_0078P", "DP05_0079P", "DP05_0080P", "DP05_0081P", "DP05_0082P", "DP05_0083P"  )
+  )
+
+race_data <-
+  map_df(2016:2014,
+         ~ get_acs(
+           year = .x,
+           geography = "county",
+           state = "VA",
+           county = "003",
+           variables =  race_vars$variable,
+           survey = "acs1", 
+           cache = TRUE
+         ) %>%
+           select(GEOID, NAME, variable, estimate) %>%
+           left_join(race_vars_2019) %>%
+           mutate(year = .x)
+  )
+
+
+
+census_2010 <- load_variables(2010, dataset = "sf1", cache = TRUE)
+
+View(census_2010)
+
+# P003001 Total People
+# P003002 Total White Alone 
+# P003003 Total Black or AA Alone
+
+race_vars_2010 <- 
+  tibble(
+    race = c("total" ,"white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
+    variable = c("P003001", "P003002", "P003003", "P003004", "P003005", "P003006", "P003007", "P003008"  )
+  )
+
+race_data_2010 <- 
+  get_decennial(
+      year = 2010,
+      geography = "county",
+      state = "VA",
+      county = "003",
+      variables =  race_vars_2010$variable,
+      cache = TRUE
+  ) %>%
+  select(GEOID, NAME, variable, estimate= value) %>%
+  left_join(race_vars_2010) %>%
+  mutate(year = 2010)
+
+race_2010 <-
+race_data_2010 %>%
+  mutate(total = case_when(
+    race == "total" ~ estimate,
+    TRUE ~ 0)
+  ) %>%
+ mutate(total = sum(total),
+        pct = estimate/total* 100) %>%
+  filter(!race %in% c("total")) %>%
+  mutate(
+        sum = sum(pct)
+        ) %>%
+  select(race, estimate = pct, year)
+
+
+race_2010 %>%
+bind_rows(race_data %>%
+            select(race, estimate, year)
+          ) 
+
+
+# Pull Ethnicity breakdowsn 2000 - 2019
+# Percent Hispanic or Latino -- DP05_0071P
 # Nativity in 2019
 # Specific Nativity in 2019 [New Albemarlians. Albemarlites??]
-
 
 
 # Median Household Income -------------------------------------------------
 # https://www.census.gov/data-tools/demo/saipe/#/?map_geoSelector=mhi_s&map_yearSelector=2018&s_year=2018,2009&s_state=51&s_county=51003&s_measures=mhi_snc
 
 
+
 # Look into the Gender Pay Gap <- lowest priority of anything. 
+
 
 
 # Cost of Living ALICE Estimates. We do have that.  -----------------------
 
+
+
 # Family size by % of AMI. 
-
-
-
-
 
 
