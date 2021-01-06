@@ -1,9 +1,12 @@
 library(tidyverse)
 library(readxl)
 
-setwd("~/Box Sync/mpc/dataForDemocracy/albequity_profile/")
+#setwd("~/Box Sync/mpc/dataForDemocracy/albequity_profile/")
+setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile")
+
 
 albco <- read_excel("data/albco_profile_raceovertime.xlsx")
+
 ggplot(albco, aes(x = year, y = white_per)) + 
   geom_line(color = "blue") + 
   geom_line(aes(y = nonwhite_per), color = "red")

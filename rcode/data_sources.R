@@ -32,6 +32,7 @@ select <- dplyr::select
 # County Level Life Expectancy:  https://www.countyhealthrankings.org/app/virginia/2020/measure/outcomes/147/data
 
 acs1 <- load_variables(2019, "acs1", cache = TRUE)
+acs5 <- load_variables(2019, "acs5", cache = TRUE)
 acs1_2019 <- load_variables(2019, "acs1/subject", cache = TRUE)
 View(acs1_2019)
 acs1_2019_prof <- load_variables(2019, "acs1/profile", cache = TRUE)
@@ -42,7 +43,7 @@ View(acs1_2019_prof)
 # Full Census Demographic Breakdown of Albemarle --------------------------
 
 demographic_tables <-
-  map_df(2019:2011,
+  map_df(2019:2010,
          ~ get_acs(
            year = .x,
            geography = "county",
@@ -56,8 +57,10 @@ demographic_tables <-
            mutate(year = .x)
   )
 
+View(demographic_tables)
+
 acs1_dp_labels <- 
-  map_df(2019:2011,
+  map_df(2019:2010,
         ~ load_variables(.x, 
                          "acs1/profile", 
                          cache = TRUE) %>%
@@ -66,13 +69,13 @@ acs1_dp_labels <-
 rename(variable = name)
 
 
-alb_demographic_profile_2011_2019 <-
+alb_demographic_profile_2010_2019 <-
 demographic_tables %>%
   left_join(acs1_dp_labels) %>%
   separate(label,
            c("stat", "category", "group", "level", "restriction", "etc"),
-           sep = "!!") %>%
-  filter(stat == "Percent") %>%
+           sep = "!!") %>%  
+  filter(stat %in% c("Percent", "Percent Estimate"))  %>%
   filter(!is.na(estimate)) %>%
   mutate(
     final_level =
@@ -86,7 +89,6 @@ demographic_tables %>%
         category == "RACE" & group == "Two or more races" & is.na(level)  ~ group,
         category == "HISPANIC OR LATINO AND RACE" & group == "Total population" & !is.na(level) & is.na(restriction) ~ level,
         category == "HISPANIC OR LATINO AND RACE" & !is.na(group)  & is.na(level) ~ group,
-        
         
         TRUE ~ NA_character_
         
@@ -111,10 +113,10 @@ demographic_tables %>%
   ) %>% 
   select(variable, estimate, moe, year, category, final_level ) 
 
-View(alb_demographic_profile_2011_2019)
+View(alb_demographic_profile_2010_2019)
 
 alb_demographic_table <-
-alb_demographic_profile_2011_2019 %>%
+alb_demographic_profile_2010_2019 %>%
   select(-moe, - variable) %>%
   distinct() %>%
   spread(year, estimate) #%>%
@@ -125,6 +127,8 @@ alb_demographic_table %>% View()
   
 
 write_csv(alb_demographic_table, path  = "demographic_table.csv")
+
+
 # Table 1: AHDI -----------------------------------------------------------
 # How to Calculate HDI
 # http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
@@ -232,6 +236,9 @@ table1_dat <-
     mutate(GEOID = "51000")
 )
 
+
+
+
 # Education Enrollment Data 
 # tract_schl: 6 groups (3-4, 5-9, 10-14, 15-17, 18-19, 20-24) must be summed
 #             population and enrolled, and divided
@@ -258,6 +265,7 @@ state_enroll <- get_acs(geography = "state",
                          survey = "acs1", 
                          year = 2019, 
                     cache_table = TRUE)
+
 
 # County Level School Enrollment Data
 county_schl_num <- county_enroll %>% 
@@ -331,9 +339,7 @@ table1_dat %>%
          ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3   ) %>%
   select(fips, county, everything(), -state)
 
-
 table1_final
-
 
 
 # Racially Disaggregated AHDI in Albemarle --------------------------------
@@ -378,13 +384,13 @@ race_disag_ed_1B %>%
   select(-Estimate, -Total) %>%
   mutate(
     Total = case_when(
-      Sex == "Both" & Level == "All" ~ estimate,
+     Level == "All" ~ estimate,
       TRUE ~ 0
     )  
   ) %>%
-  group_by(Race) %>%
+  group_by(Race, Sex) %>%
   mutate(Total = sum(Total))  %>% 
-  group_by(Race, Level) %>%
+  group_by(Race, Sex, Level) %>%
   summarize(estimate = sum(estimate, na.rm = TRUE), Total = min(Total, na.rm = TRUE)) %>% 
   filter(estimate > 0) %>%
   filter(!Level %in% c("All")) %>%
@@ -409,11 +415,6 @@ alb_race_enroll <- get_acs(geography = "county",
                          survey = "acs1", 
                          year = 2019, 
                          cache_table = TRUE) 
-
-
-
-
-
 
 
 
@@ -508,7 +509,6 @@ tract_ahdi
 
 
 
-
 # Education Section -------------------------------------------------------
 
 # These do not have most races in them. Just Black & White
@@ -522,7 +522,6 @@ race_disag_ed_1B <-
                    year = 2019)  %>%
            left_join(acs1 %>% rename(variable = name))
   )
-
 
 # These do not have the Grad degrees in them Still missing some data 
 race_disag_ed_1C <-
@@ -575,8 +574,23 @@ race_disag_ed_5C <-
            left_join(acs1 %>% rename(variable = name))
   )
 
+
+disag_ed_1C_total <-
+  map_df(c("C15002"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+## Add Sex into this one. 
+
 ## This does not have graduate level and above in it. We need something better from somewhere
-ed_table <-
+ed_table_race_total <-
+
 race_disag_ed_5C %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
@@ -602,125 +616,206 @@ race_disag_ed_5C %>%
   summarize(estimate = sum(estimate), Total = min(Total)) %>% 
  filter(!Level %in% c("All")) %>%
   mutate(pct = estimate/Total * 100) %>%
-  mutate(pct = paste0( round(estimate/Total * 100, 2), "%")) %>%
+  select(-estimate, -Total) %>%
+  spread(Level, pct) %>%
+  mutate(Sex = "All")
+
+ed_table_race_total
+
+
+ed_table_sex_race_disag <-
+  race_disag_ed_5C %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
+  mutate(
+    Sex = case_when(is.na(Sex) ~ "Both",
+                    TRUE ~ Sex),
+    
+    Level = case_when(is.na(Level)  ~ "All",
+                      TRUE ~ Level)
+  ) %>%
+  separate(concept, c(NA, "Race"), sep = "\\(") %>%
+  mutate(Race = str_replace_all(Race, "\\)", ""))  %>%
+  select(-Estimate, -Total) %>%
+  mutate(
+    Total = case_when(
+    Level == "All" ~ estimate,
+      TRUE ~ 0
+    )  
+  ) %>%
+  group_by(Race, Sex) %>%
+  mutate(Total = sum(Total))  %>% 
+  group_by(Race, Sex, Level) %>%
+  summarize(estimate = sum(estimate, na.rm = TRUE), Total = min(Total, na.rm = TRUE)) %>% 
+  filter(!Level %in% c("All")) %>%
+  mutate(pct = estimate/Total * 100) %>%
   select(-estimate, -Total) %>%
   spread(Level, pct)
 
-names(ed_table)
-ed_table
+ed_table_sex_race_disag
+names(ed_table_sex_race_disag)
 
 
-
-# Racial Breakdowns -------------------------------------------------------
-# Pull racial breakdowns 2010 - 2019
-# Percent White Alone: DP05_0077P
-# Percent Black or AA Alone: DP05_0078P
-# Percent American Indian and Alaska Native alone -- DP05_0079P
-# Percent Asian alone -- DP05_0080P
-# Percent Native Hawaiian and Other Pacific Islander alone -- DP05_0081P
-# Percent Some other race alone -- DP05_0082P
-# Percent Two or more races -- DP05_0083P
-
-race_vars_2019 <- 
-  tibble(
-    race = c("white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
-    variable = c("DP05_0077P", "DP05_0078P", "DP05_0079P", "DP05_0080P", "DP05_0081P", "DP05_0082P", "DP05_0083P"  )
+ed_table_sex_total <- 
+disag_ed_1C_total %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!")  %>%
+  mutate(
+    Sex = case_when(is.na(Sex) ~ "Both",
+                  TRUE ~ Sex),
+  
+    Level = case_when(is.na(Level)  ~ "All",
+                    TRUE ~ Level)
+  )  %>%
+  select(-Estimate, -Total) %>%
+  mutate(
+    Total = case_when(
+     Level == "All" ~ estimate,
+      TRUE ~ 0
+    )  
+  ) %>%
+  group_by(Sex) %>%
+  mutate(Total = sum(Total)) %>%
+  filter(!Level %in% c("All")) %>%
+  mutate(pct = estimate/Total * 100) %>%
+  select(-estimate, -Total, -concept, -variable, -moe) %>%
+  spread(Level, pct) %>%
+  transmute(
+    Race = "All",
+    Sex = Sex,
+    `Less than high school diploma` = `Less than 9th grade` + `9th to 12th grade, no diploma`,
+    `High school graduate (includes equivalency)` = `High school graduate (includes equivalency)`,
+    `Some college or associate's degree` = `Associate's degree` + `Some college, no degree`,
+    `Bachelor's degree or higher` = `Bachelor's degree` + `Graduate or professional degree`,
   )
 
+ed_table_sex_total
+names(ed_table_sex_total)
 
-race_data <-
-map_df(2019:2017,
-~ get_acs(
-  year = .x,
-  geography = "county",
-  state = "VA",
-  county = "003",
-  variables =  race_vars$variable,
-  survey = "acs1", 
-  cache = TRUE
-) %>%
-  select(GEOID, NAME, variable, estimate) %>%
-  left_join(race_vars_2019) %>%
-  mutate(year = .x)
+
+
+ed_table_total <-
+  disag_ed_1C_total %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!")  %>%
+  mutate(
+    Sex = case_when(is.na(Sex) ~ "Both",
+                    TRUE ~ Sex),
+    
+    Level = case_when(is.na(Level)  ~ "All",
+                      TRUE ~ Level)
+  )  %>%
+  select(-Estimate, -Total) %>%
+  mutate(
+    Total = case_when(
+      Sex == "Both" & Level == "All" ~ estimate,
+      TRUE ~ 0
+    )  
+  ) %>%
+ # group_by(Sex) %>%
+  mutate(Total = sum(Total)) %>%
+  group_by( Level) %>%
+  summarize(estimate = sum(estimate, na.rm = TRUE), Total = min(Total, na.rm = TRUE))  %>% 
+  filter(!Level %in% c("All")) %>%
+  mutate(pct = estimate/Total * 100) %>%
+  select(-estimate, -Total) %>%
+  spread(Level, pct) %>%
+  transmute(
+    Race = "All",
+    Sex = "All",
+    `Less than high school diploma` = `Less than 9th grade` + `9th to 12th grade, no diploma`,
+    `High school graduate (includes equivalency)` = `High school graduate (includes equivalency)`,
+    `Some college or associate's degree` = `Associate's degree` + `Some college, no degree`,
+    `Bachelor's degree or higher` = `Bachelor's degree` + `Graduate or professional degree`,
+  )
+
+ed_table_total
+names(ed_table_total)
+
+final_ed_table <-
+bind_rows(
+ed_table_race_total,
+ed_table_sex_race_disag,
+ed_table_sex_total,
+ed_table_total 
 )
 
 
+View(final_ed_table)
 
-race_vars_2016 <- 
-  tibble(
-    race = c("white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
-    variable = c("DP05_0077P", "DP05_0078P", "DP05_0079P", "DP05_0080P", "DP05_0081P", "DP05_0082P", "DP05_0083P"  )
-  )
 
-race_data <-
-  map_df(2016:2014,
-         ~ get_acs(
-           year = .x,
-           geography = "county",
-           state = "VA",
-           county = "003",
-           variables =  race_vars$variable,
-           survey = "acs1", 
-           cache = TRUE
-         ) %>%
-           select(GEOID, NAME, variable, estimate) %>%
-           left_join(race_vars_2019) %>%
-           mutate(year = .x)
+
+# Tract Level Education ---------------------------------------------------
+
+disag_ed_5C_tract <-
+  map_df(c("B15002"),
+         ~ get_acs(geography = "tract",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs5",
+                   year = 2019)  %>%
+           left_join(acs5 %>% rename(variable = name))
   )
 
 
+disag_ed_5C_tract
 
-census_2010 <- load_variables(2010, dataset = "sf1", cache = TRUE)
+# Nativity ----------------------------------------------------------------
 
-View(census_2010)
-
-# P003001 Total People
-# P003002 Total White Alone 
-# P003003 Total Black or AA Alone
-
-race_vars_2010 <- 
-  tibble(
-    race = c("total" ,"white", "black", "aian", "asian", "nhpi", "other", "two_plus"),
-    variable = c("P003001", "P003002", "P003003", "P003004", "P003005", "P003006", "P003007", "P003008"  )
-  )
-
-race_data_2010 <- 
-  get_decennial(
-      year = 2010,
-      geography = "county",
-      state = "VA",
-      county = "003",
-      variables =  race_vars_2010$variable,
-      cache = TRUE
-  ) %>%
-  select(GEOID, NAME, variable, estimate= value) %>%
-  left_join(race_vars_2010) %>%
-  mutate(year = 2010)
-
-race_2010 <-
-race_data_2010 %>%
-  mutate(total = case_when(
-    race == "total" ~ estimate,
-    TRUE ~ 0)
-  ) %>%
- mutate(total = sum(total),
-        pct = estimate/total* 100) %>%
-  filter(!race %in% c("total")) %>%
-  mutate(
-        sum = sum(pct)
-        ) %>%
-  select(race, estimate = pct, year)
-
-
-race_2010 %>%
-bind_rows(race_data %>%
-            select(race, estimate, year)
-          ) 
-
-
-# Pull Ethnicity breakdowsn 2000 - 2019
-# Percent Hispanic or Latino -- DP05_0071P
 # Nativity in 2019
+
+nativity_1B <-
+         get_acs(geography = "county",
+                   table = "B05012",
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name)
+                     )
+
+nativity <-
+nativity_1B %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Nativity"), sep = "!!") %>%
+  mutate(denom = case_when(is.na(Nativity) ~ estimate,
+                           TRUE ~ 0)) %>%
+  group_by(NAME) %>%
+  mutate(denom = sum(denom),
+         pct = estimate / denom * 100) %>%
+  ungroup() %>%
+  select(Nativity, pct) %>%
+  filter(!is.na(Nativity)) 
+
+nativity
+
+citizenship_1B <-
+  get_acs(geography = "county",
+          table = "B05001",
+          state = "VA", 
+          county = "003", 
+          survey = "acs1",
+          year = 2019)  %>%
+  left_join(acs1 %>% rename(variable = name)
+  )
+
+citizenship <-
+citizenship_1B %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Citizenship"), sep = "!!") %>%
+  mutate(denom = case_when(is.na(Citizenship) ~ estimate,
+                           TRUE ~ 0)) %>%
+  group_by(NAME) %>%
+  mutate(denom = sum(denom),
+         pct = estimate / denom * 100) %>%
+  ungroup() %>%
+  select(Citizenship, pct) %>%
+  filter(!is.na(Citizenship)) 
+
+citizenship
+
+
 # Specific Nativity in 2019 [New Albemarlians. Albemarlites??]
 
 
