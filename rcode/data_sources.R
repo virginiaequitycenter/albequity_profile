@@ -959,20 +959,85 @@ save(origin, citizenship, nativity, file = "origins.Rda")
 
 # Cost of Living ALICE Estimates. We do have that.  -----------------------
 # https://www.unitedforalice.org/virginia
+# url <- "https://www.unitedforalice.org/Attachments/StateDataSheet/DataSheet_VA.xlsx"
+# destfile <- "alice_va.xlsx"
+# download.file(url, destfile)
 
-# Median HHInc by Race
-# S1901
-# Alice Threshold vs. Median income together. 
-# Descriptive stats abotu %income necessary to live here as thats changed over time. 
 
 # Stacked Area Chart of Poverty, Alice, + Alice
+sheets <- excel_sheets("alice_va.xlsx")
 
+alice_va <- read_excel("alice_va.xlsx", sheet = sheets[2]) %>%
+  rename_with(~ tolower(str_replace_all(.x, ":|-| ", "_") )
+              ) %>%
+  filter(geo.id2 == "51003")
 
+alice_alb <-
+alice_va %>%
+  select(year, household, poverty_household, alice_household, above_alice_household) %>%
+  gather(level, number, -year, -household) %>%
+  mutate(pct = number/household*100 )
+  
 
-# Median Household income. Along with the Alice $$ value. 
+write_csv(alice_alb, path = "alice_alb_hhs.csv")
+
+# Alice Level & Median HHInc by Race
+# S1901 
+# B19013
 
 #  Household incomes by race. 
 # B190001A-I
+
+table_list <- c(
+"B19013",
+"B19013A", 
+"B19013B", 
+"B19013C", 
+"B19013D", 
+"B19013E", 
+"B19013F", 
+"B19013G", 
+"B19013H",
+"B19013I"  
+)
+
+year_list <- seq(2010,2018, 2)
+year_tables <- expand.grid(table_list, year_list)
+
+med_hhinc <- 
+  map2_df(year_tables$Var1, year_tables$Var2,
+ ~ get_acs(geography = "county", 
+                               table = .x, 
+                               state = "VA", 
+                               county = "003", 
+                               survey = "acs5", 
+                               year = .y, 
+                               cache_table = TRUE)  %>%
+   mutate(year = .y)
+
+)
+
+
+# Alice Threshold vs. Median income together. 
+
+alice_hhinc_thresh <-
+med_hhinc %>%
+  left_join(acs5 %>% rename(variable = name)) %>%
+ separate(concept, c(NA, NA, "race"), sep = "\\(") %>%
+  mutate(
+    race = case_when(
+    is.na(race) ~ "Overall",
+    TRUE ~ str_trim(str_replace_all(proper(race), "\\)|Householder|Alone", ""))
+    )
+  ) %>%
+  select(year, race, `Median Household Income` = estimate) %>%
+left_join(
+alice_va %>%
+  select(year, `ALICE Threshold` = alice_threshold___hh_under_65) 
+) #%>%
+#  gather(estimate, stat, -year, -race)
+
+write_csv(alice_hhinc_thresh, path = "alice_thresh.csv")
 
 
 # Gini Index to match Alice at county level ACS1. 
@@ -980,6 +1045,7 @@ save(origin, citizenship, nativity, file = "origins.Rda")
 
 
 
+# Cost Burdened Renters ---------------------------------------------------
 
 # Cost Burdened Renters
 # B25074 or

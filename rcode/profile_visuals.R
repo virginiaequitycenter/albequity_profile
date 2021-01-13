@@ -995,7 +995,7 @@ ggplot(house_cost_burden, aes(y = reorder(keypoints, end_line )  ))  +
             aes(x = end_line + .02,
             #  x = -1.05,
                 y = keypoints,
-                label = paste0("Total Renting\nHouseholds: ", denom)),
+                label = paste0("Among ", denom,"\nRenting Households")),
             hjust = 0, 
             size = 2.5,
     
@@ -1043,6 +1043,165 @@ ggplot(house_cost_burden, aes(y = reorder(keypoints, end_line )  ))  +
 jpeg(filename = "../graphs/housing_costs.jpg", height = 41*72, width = 46*72, units = 'px', res = 300)
 
 p
+
+dev.off()
+
+
+# ALICE Metrics -----------------------------------------------------------
+
+alice_hhs <- read_csv("alice_alb_hhs.csv")
+
+alice_hhs
+
+alice_hhs_graph  <- 
+  alice_hhs %>%
+  mutate(level = case_when(
+    level == "poverty_household" ~ "Poverty",
+    level == "alice_household" ~ "ALICE",
+    level == "above_alice_household" ~ "Above ALICE"
+  )
+) %>%
+  group_by(year) %>%
+  arrange(year, desc(level)) %>%
+  mutate(height = cumsum(pct) - pct/2) %>%
+  mutate(display = ifelse(pct > 2, paste0(round(pct),"%" ), "")) 
+
+alice_pal <- brewer.pal(4, "BuPu")[-1]
+
+alice_hhs_gg<-
+ggplot(alice_hhs_graph, aes(x = year, y = pct, fill = level, group = level)) +
+  geom_area(alpha=0.6 , size=.5, colour = "white") +
+  
+  # end label
+  geom_text(data = alice_hhs_graph %>%
+              group_by( level) %>%
+              arrange(desc(year)) %>%
+              slice(1),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1.2, hjust = 1, size = 4) +
+  
+  # front Label
+  geom_text(data = alice_hhs_graph %>%
+              group_by( level) %>%
+              arrange(year) %>%
+              slice(1),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 4) +
+  
+  # middle label
+  geom_text(data = alice_hhs_graph %>%
+              group_by( level) %>%
+              arrange(year) %>%
+              slice(3),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = .5, size = 4) +
+  
+  
+  scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0 ), limits = c(0, 100), breaks=seq(0,100, 25)) +
+  
+  scale_x_continuous( breaks=seq(2010,2018, 2), limits = c( 2010, 2018) )  +
+  
+  scale_fill_manual(values = alice_pal) +
+  guides(fill = guide_legend(nrow = 1, label.position = "top", reverse = TRUE)) +  
+  
+  
+  coord_cartesian(clip = 'off') +
+  
+  labs(x="Year", y="Population %", fill = "Income Status", title = "Asset Limited, Income Constrained, Employed Population in Albemarle")  +
+  
+  theme_bw()+
+  
+  theme(
+    plot.title = element_text( face="bold", hjust = .5, size = 12),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title.x = element_text(face = "bold", vjust=-2.5, size = 10),
+    axis.title.y = element_text(face = "bold", size = 10),
+    axis.text.x=element_text(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    
+    axis.line =  element_line(color  = "white"),
+    panel.spacing = unit(1.5, "lines"),
+    strip.background = element_blank(),
+    strip.text = element_text(face="bold", size = 10),
+    panel.border = element_blank(),
+    plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
+  ) 
+
+
+
+jpeg(filename = "../graphs/alice_hhs.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
+
+alice_hhs_gg
+
+dev.off()
+
+
+## ALICE Threshold 
+
+alice_thresh <- read_csv("alice_thresh.csv") 
+
+alice_thresh_graph <- 
+  alice_thresh %>%
+  filter(!race %in% c("White , Not Hispanic Or Latino")) %>%
+  mutate(
+    race = factor(race, levels = c(
+      "Overall",
+      "White",
+      "Black Or African American",
+      "Asian",
+      "American Indian And Alaska Native",
+      "Two Or More Races",
+      "Some Other Race",
+      "Hispanic Or Latino"
+      
+    )
+ )
+) %>%
+  filter(!is.na(race))
+
+alice_pal <- brewer.pal(4, "BuPu")[-1]
+
+alice_thresh_gg <-
+ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
+  geom_area(data = alice_thresh_graph, 
+            aes(x = year, y = `ALICE Threshold`), 
+            color = "black", size = 0, alpha = .1, 
+            fill = alice_pal[3] ) +
+  geom_line(data = alice_thresh_graph %>%
+              gather(type, value, -year, -race), 
+            aes(x = year, y = value, color = type), 
+            inherit.aes = FALSE, size = 1 ) +
+  
+  scale_color_manual(values = c("black", "blue")) +
+  
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
+
+  labs(color = "", y = "", x = "", title = "Cost of Living Outpaces Median Income") +
+  
+  scale_y_continuous(limits = c(0, 100000), labels = function(x) paste0("$",formatC(x, format = "d", big.mark = ","))    )+ 
+  theme_classic() +
+  theme(
+   plot.title = element_text(face = "bold", hjust = .5),
+  # legend.position = c(.85, .15),
+   legend.position = "top",
+  
+   axis.line.y = element_blank(),
+   strip.background = element_rect(fill = "light grey"),
+   panel.spacing = unit(1, "lines"),
+   panel.grid.major.y = element_line(linetype = "dashed", size = .4),
+   axis.line.x = element_blank(),
+   
+   
+  ) +
+  facet_wrap(~race, scales = "free_x")
+
+
+
+alice_thresh_gg
+
+
+jpeg(filename = "../graphs/alice_thresh.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+alice_thresh_gg
 
 dev.off()
 
