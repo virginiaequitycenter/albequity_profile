@@ -42,6 +42,9 @@ View(acs1_2019_prof)
 
 # Full Census Demographic Breakdown of Albemarle --------------------------
 
+## Try to pull the 2010 census estimates 
+## 
+
 demographic_tables <-
   map_df(2019:2010,
          ~ get_acs(
@@ -124,9 +127,71 @@ alb_demographic_profile_2010_2019 %>%
  # distinct()
 
 alb_demographic_table %>% View()
-  
 
 write_csv(alb_demographic_table, path  = "demographic_table.csv")
+
+
+# 2019 Age By Sex ---------------------------------------------------------
+
+
+sex_age_pull <-
+         get_acs(
+           year = 2019,
+           geography = "county",
+           state = "VA",
+           county = "003",
+           # variables =  race_vars$variable,
+           table = "B01001",
+           survey = "acs1", 
+           cache = TRUE
+         )
+
+sex_age <-
+sex_age_pull %>%
+  left_join(acs1 %>%
+              rename(variable = name)) %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label,
+           c(NA, "Total", "sex", "level"),
+           sep = "!!")  %>%
+  filter(!is.na(sex), !is.na(level)) %>%
+  select(sex, level, estimate) %>%
+  mutate(
+    level = str_replace_all(level, " ", ""),
+    level = str_replace_all(level, "years", ""),
+    level = str_replace_all(level, "Under", "0to"),
+    level = str_replace_all(level, "over", "500")
+    ) %>% 
+  separate(level, c("start", "end"), sep = "to|and") %>% 
+  mutate(
+    end = case_when(
+      is.na(end) ~ start,
+      TRUE ~ end
+    ),
+    start = as.numeric(start),
+    end = as.numeric(end),
+    age_group = 
+      case_when(
+        end < 6 ~ "Under 5 years",
+        start > 4 & end < 10 ~ "5 to 9 years",
+        start > 9 & end < 15 ~ "10 to 14 years",
+        start > 14 & end < 20 ~ "15 to 19 years",
+        start > 19 & end < 25 ~ "20 to 24 years",
+        start > 24 & end < 35 ~ "25 to 34 years",
+        start > 34 & end < 45 ~ "35 to 44 years",
+        start > 44 & end < 55 ~ "45 to 54 years",
+        start > 54 & end < 60 ~ "55 to 59 years",
+        start > 59 & end < 65 ~ "60 to 64 years",
+        start > 64 & end < 75 ~ "65 to 74 years",
+        start > 74 & end < 85 ~ "75 to 84 years",
+        start > 84 ~ "85 years and over"
+      )
+  ) %>% 
+  group_by(sex, age_group) %>%
+  summarize(estimate = sum(estimate))
+
+
+write_csv(sex_age, path  = "sex_age.csv")
 
 
 # Table 1: AHDI -----------------------------------------------------------
@@ -167,6 +232,8 @@ life_expectancies <-
                        "Harrisonburg", "Charlottesville City", 
                        "Fairfax", "Stafford"
   ))
+
+
 
 # Census AHDI County Data -------------------------------------------------
 # Pull ACS 1 for the few that you can and pull ACS 5 for charlottesville. 
@@ -235,7 +302,6 @@ table1_dat <-
   left_join(tab1_labs) %>%
     mutate(GEOID = "51000")
 )
-
 
 
 
@@ -342,12 +408,18 @@ table1_dat %>%
 table1_final
 
 
+write_csv(table1_final, path = "ahdi_table.csv")
+
+
 # Racially Disaggregated AHDI in Albemarle --------------------------------
 
 # Life Expectancy
+# County Rankings source. 
 le_alb <-
 life_expectancies %>%
   filter(county == "Albemarle")
+
+le_alb
 
 # We might only get differential life expectancy tbh
 
@@ -505,10 +577,11 @@ tract_ahdi <-
     ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3  ) 
 
 
-tract_ahdi
+tract_ahdi %>% View()
 
+summary(tract_ahdi$ahdi)
 
-
+write_csv(tract_ahdi, path = "tract_ahdi.csv")
 # Education Section -------------------------------------------------------
 
 # These do not have most races in them. Just Black & White
@@ -535,6 +608,7 @@ race_disag_ed_1C <-
            left_join(acs1 %>% rename(variable = name))
   )
 
+View(race_disag_ed_1C)
 
 # "K201501" # Supplemental table 1 - tidycensus will not pull
 race_disag_ed_1K <-
@@ -742,12 +816,17 @@ ed_table_total
 
 
 View(final_ed_table)
+names(final_ed_table)
+final_ed_table %>%
+  rename(`High school graduate` = `High school graduate (includes equivalency)`) %>%
+  gather(degree, percent, -c(Race, Sex)) %>%
+  write_csv(., path = "education_distrbution.csv")
 
-
+View(final_ed_table)
 
 # Tract Level Education ---------------------------------------------------
-
-disag_ed_5C_tract <-
+# collapse this as finishing vs not finishing bachelors degrees 
+disag_ed_5B_tract <-
   map_df(c("B15002"),
          ~ get_acs(geography = "tract",
                    table = .x,
@@ -758,8 +837,36 @@ disag_ed_5C_tract <-
            left_join(acs5 %>% rename(variable = name))
   )
 
-
-disag_ed_5C_tract
+geo_ed <-
+disag_ed_5B_tract %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!")  %>%
+  mutate(Sex = case_when(
+    is.na(Sex) ~ "All",
+    TRUE ~ Sex
+    ),
+  Level = case_when(
+    is.na(Level) & Sex == "All" ~ "Total",
+    TRUE ~ Level
+    )
+  ) %>%
+  select(GEOID, estimate, Sex, Level) %>%
+  group_by(GEOID, Level) %>%
+  summarize(estimate = sum(estimate)) %>%
+  filter(!is.na(Level)) %>%
+  mutate(
+    bac = case_when(
+      Level %in% c("Bachelor's degree", "Doctorate degree", "Master's degree", "Professional school degree") ~ "bac",
+      Level %in% c("Total") ~ "tot",
+      TRUE ~ "less"
+    )
+  ) %>%
+  group_by(GEOID, bac) %>% 
+  summarize(est = sum(estimate)) %>%
+  spread(bac, est) %>%
+  mutate(perc_bac = bac/tot*100)
+  
+write_csv(geo_ed, path = "geographic_education.csv")
 
 # Nativity ----------------------------------------------------------------
 
@@ -815,10 +922,32 @@ citizenship_1B %>%
 
 citizenship
 
+# Origin of foreign born
+# B05006
+
+origin_1B <-
+  get_acs(geography = "county",
+          table = "B05006",
+          state = "VA", 
+          county = "003", 
+          survey = "acs5",
+          year = 2019)  %>%
+  left_join(acs5 %>% rename(variable = name)
+  )
+
+
+origin <-
+origin_1B %>%
+  mutate(label = str_replace_all(label, ":", "")) %>%
+  
+  separate(label, c("Estimate", "Total", "Continent", "Country"), sep = "!!")  %>%
+  filter(!is.na(Continent), is.na(Country)) %>%
+  select(Continent, estimate)
+  
+
+save(origin, citizenship, nativity, file = "origins.Rda")
 
 # Specific Nativity in 2019 [New Albemarlians. Albemarlites??]
-
-
 # Median Household Income -------------------------------------------------
 # https://www.census.gov/data-tools/demo/saipe/#/?map_geoSelector=mhi_s&map_yearSelector=2018&s_year=2018,2009&s_state=51&s_county=51003&s_measures=mhi_snc
 
@@ -829,9 +958,108 @@ citizenship
 
 
 # Cost of Living ALICE Estimates. We do have that.  -----------------------
+# https://www.unitedforalice.org/virginia
+
+# Median HHInc by Race
+# S1901
+# Alice Threshold vs. Median income together. 
+# Descriptive stats abotu %income necessary to live here as thats changed over time. 
+
+# Stacked Area Chart of Poverty, Alice, + Alice
 
 
 
-# Family size by % of AMI. 
+# Median Household income. Along with the Alice $$ value. 
+
+#  Household incomes by race. 
+# B190001A-I
+
+
+# Gini Index to match Alice at county level ACS1. 
+
+
+
+
+
+# Cost Burdened Renters
+# B25074 or
+# B25070
+
+county_housing_cost <- get_acs(geography = "county", 
+                               table = "B25070", 
+                               state = "VA", 
+                               county = "003", 
+                               survey = "acs1", 
+                               year = 2019, 
+                               cache_table = TRUE)
+
+
+tract_housing_cost <- get_acs(geography = "tract", 
+                               table = "B25070", 
+                               state = "VA", 
+                               county = "003", 
+                               survey = "acs5", 
+                               year = 2019, 
+                               cache_table = TRUE)
+
+# County level stats. 
+county_housing <-
+county_housing_cost %>%
+  left_join(acs1 %>% rename(variable = name)) %>%
+  separate(label, c(NA, "Total", "level"), sep = "!!")  %>%
+  mutate(level = case_when(is.na(level) ~ "Total",
+                           TRUE ~ level)) %>%
+  select(estimate, level, GEOID)  %>%
+  spread(level, estimate) %>%
+  rename_with( ~ str_replace_all(
+    tolower(
+      str_replace_all(.x, " ", "_")
+    ),
+    "_percent",
+    "")
+  ) %>%
+  
+  mutate(denom = total - not_computed,
+         Burdened = `30.0_to_34.9` + `35.0_to_39.9` + `40.0_to_49.9`,
+         `Severely Burdened` =  `50.0_or_more`,
+         `Not Burdened` = less_than_10.0 + `10.0_to_14.9` + `15.0_to_19.9` + `20.0_to_24.9` +`25.0_to_29.9`
+         
+  ) %>%
+  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`) %>%
+  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom)) %>%
+  mutate(geoid = "total", county_type = "County")
+
+
+# Tract level stats. 
+albemarle_housing_costs <- 
+tract_housing_cost %>%
+  left_join(acs1 %>% rename(variable = name)) %>%
+  separate(label, c(NA, "Total", "level"), sep = "!!")  %>%
+  mutate(level = case_when(is.na(level) ~ "Total",
+                           TRUE ~ level)) %>%
+  select(estimate, level, GEOID)  %>%
+  spread(level, estimate) %>%
+  rename_with( ~ str_replace_all(
+    tolower(
+      str_replace_all(.x, " ", "_")
+      ),
+           "_percent",
+            "")
+    ) %>%
+
+  mutate(denom = total - not_computed,
+         Burdened = `30.0_to_34.9` + `35.0_to_39.9` + `40.0_to_49.9`,
+         `Severely Burdened` =  `50.0_or_more`,
+         `Not Burdened` = less_than_10.0 + `10.0_to_14.9` + `15.0_to_19.9` + `20.0_to_24.9` +`25.0_to_29.9`
+           
+           ) %>%
+  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`) %>%
+  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom)) %>%
+  mutate(county_type = "Census Tracts") %>%
+  bind_rows(county_housing) 
+
+write_csv(albemarle_housing_costs, path = "housing_costs.csv")
+  
+
 
 

@@ -18,10 +18,17 @@ setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data
 
 library(tidyverse)
 library(viridis)
+library(ggforce) # for 'geom_arc_bar'
+library(RColorBrewer)
+library(ggnewscale)
+library(tigris)
+library(scales)
+
+
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
 ## ---------------------------
-## read in data:
+## read in demographic data:
 alb_dems <- read_csv("demographic_table.csv") %>%
   mutate(
     category =
@@ -65,11 +72,12 @@ race_trends <-
   group_by(year) %>%
   arrange(year, desc(final_level)) %>%
   mutate(height = cumsum(pct) - pct/2) %>%
-  mutate(display = ifelse(pct > 5, paste0(round(pct),"%"), "")) 
+  mutate(display = ifelse(pct > 2, paste0(round(pct),"%"), "")) 
   
 midyear = ceiling((max(race_trends$year) - min(race_trends$year) + 1)/2)
 
 alb_pal <- sample(alb_pal, length(alb_pal), replace = FALSE)
+
 
 ggplot(race_trends, aes(x = year, y = pct, fill = final_level, group = final_level)) +
   geom_area(alpha=0.6 , size=.5, colour = "white") +
@@ -101,7 +109,7 @@ ggplot(race_trends, aes(x = year, y = pct, fill = final_level, group = final_lev
   
   scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0 ), limits = c(0, 100), breaks=seq(0,100, 25)) +
 
-  scale_x_continuous( breaks=seq(2011,2019, 1), limits = c( 2011, 2019) )  +
+  scale_x_continuous( breaks=seq(2010,2019, 1), limits = c( 2010, 2019) )  +
   
   scale_fill_manual(values =c(rev(alb_pal))) +
   
@@ -129,10 +137,41 @@ ggplot(race_trends, aes(x = year, y = pct, fill = final_level, group = final_lev
     plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   ) 
   
+# It has been so stable over the past 10 years. 
+# Maybe we just pie chart it or something. 
+
+race_trends_pie <- 
+  race_trends %>%
+  filter(year == 2019) %>%
+  mutate(end = 2 * pi * cumsum(pct)/sum(pct),
+         start = lag(end, default = 0),
+         middle = 0.5 * (start + end),
+         hjust = ifelse(middle > pi, 1, 0),
+         vjust = ifelse(middle < pi/2 | middle > 3 * pi/2, 0, 1))
+  
+ggplot(race_trends_pie) +
+  geom_arc_bar(aes(x0 = 0, y0 = 0, r0 = 0, r = 1,
+                   start = start, end = end, fill = final_level)) +
+  
+  geom_text(aes(x = 1.05 * sin(middle), y = 1.05 * cos(middle), label = display,
+                hjust = hjust, vjust = vjust)) +
+  coord_fixed(clip = "off") +
+  scale_x_continuous(limits = c(-1.5, 1.4),  # Adjust so labels are not cut off
+                     name = "", breaks = NULL, labels = NULL) +
+  # scale_y_continuous(limits = c(-1, 1),      # Adjust so labels are not cut off
+  #                    name = "", breaks = NULL, labels = NULL) +
+  scale_fill_manual(values =c(rev(alb_pal))) +
+   guides(fill = guide_legend(ncol = 1, label.position = "right", reverse = TRUE)) +  
+  theme_void() +
+  labs(fill = "") +
+  theme(
+    legend.position = "right"
+  )
+
+
 
 # Try to do them all at once ----------------------------------------------
 ### errrr, maybe not - its pretty messy. 
-
 
 unique(alb_dems$final_level)
 
@@ -275,10 +314,6 @@ ggplot(graph_dems, aes(x = year, y = pct, fill = final_level, group = final_leve
 
 
 
-
-
-
-
 # Just Age ----------------------------------------------------------------
 
 life_table_nums <- 
@@ -349,11 +384,386 @@ ggplot(life_table_nums, aes(y = final_level, x = stat_display, fill = year)) +
   )
 
 
-  
-  
+# Age by Sex --------------------------------------------------------------
+sex_age <- read_csv("sex_age.csv") %>%
+  mutate(
+    age_group = factor(age_group, levels = c(
+      "Under 5 years",
+      "5 to 9 years",
+      "10 to 14 years",
+      "15 to 19 years",
+      "20 to 24 years",
+      "25 to 34 years",
+      "35 to 44 years",
+      "45 to 54 years",
+      "55 to 59 years",
+      "60 to 64 years",
+      "65 to 74 years",
+      "75 to 84 years",
+      "85 years and over"
+    )
+    )
+  ) %>%
+  group_by(sex) %>%
+  mutate(denom = sum(estimate),
+         pct = estimate/denom *100,
+         stat_display = 
+          case_when(
+             sex == "Male" ~ pct * -1,
+             TRUE ~ pct
+         ),
+         label_pos = pct + 2,
+         label_pos = case_when(
+           sex == "Male" ~ label_pos * -1,
+           TRUE ~ label_pos
+         ),
+  )
+
+sex_age
    
+ggplot(sex_age, aes(y = age_group, x = stat_display, fill = sex)) +
+  geom_col(alpha = .9) +
+  scale_fill_manual(values = alb_pal)  +
+  geom_text( aes(y = age_group, x = label_pos, label = paste0(round(pct, 1), "%")), size = 3, inherit.aes = FALSE
+  ) +
+  scale_x_continuous(labels = function(x){paste0(abs(x), "%")}, limits = c(-20, 25), breaks = c(seq(-20, 20, 5), 0)) +
+  
+  annotate("text", y = 13.5, x = -15, label = "Male" ) +
+  annotate("text", y = 13.5, x = 15, label = "Female" ) +
+  coord_cartesian(clip = 'off') +
+  
+  geom_vline(xintercept  = 0) +
+  
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line()
+  )
+
+
+# AHDI  -------------------------------------------------------------------
+
+## Do we want to graph this? 
+## Still need AHDI of the USA
+ahdi_table <- read_csv("ahdi_table.csv")
+ahdi_table
+View(ahdi_table)
+
+
+tract_names <- read_csv("tract_names.csv") %>%
+  select(-contains("X"))
+
+## Tract level ahdi
+tract_ahdi <- read_csv("tract_ahdi.csv") %>%
+  rename_with(~tolower(.x))  %>%
+  left_join(tract_names)
+
+tract_ahdi_graph <-
+tract_ahdi %>%
+  select(geoid, ahdi_health, ahdi_ed, ahdi_income, ahdi, keypoints) %>%
+  gather(component, metric, -c(geoid, keypoints)) %>%
+  separate(component, c(NA, "category")) %>% 
+  mutate(
+    category = 
+      case_when(
+        is.na(category) ~ "composite",
+        TRUE ~ category
+      )
+  ) %>%
+    filter(!is.na(metric)) %>%
+  filter(!grepl("UVA", keypoints)) %>%
+  mutate(alpha_indicator =
+           case_when(
+             category == "composite" ~ 1,
+             TRUE ~ 0
+           )
+           )
+
+## Dot plot option
+ggplot(tract_ahdi_graph) +
+  geom_point(
+    aes(x = metric, 
+        y = reorder(keypoints, metric), 
+        color = category,
+        alpha = alpha_indicator,
+        size = alpha_indicator
+    ),
+                )  +
+  scale_alpha_continuous(range = c(.7, .9)) +
+ scale_size_continuous(range = c(1.5,3)) +
+  scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+                   
+  #  scale_color_manual(values = alb_pal) +
+  geom_vline(xintercept = 7.417, 
+            # linetype = "dashed", 
+             color = "black", 
+             size = .2) +
+  annotate("text", x =7.417, y = 19.5, 
+           label = "Albemarle County AHDI", 
+           vjust = -.7, 
+           hjust = 0.5, 
+           color = "black", 
+           size = 3.5 ) +
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs(color = "", x = "AHDI", y = "") +
+    coord_cartesian(clip = "off") + 
+theme_classic() +
+  theme(
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+   # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line()
+  ) 
+
+
+## Parallel Coordinates
+tract_ahdi_graph %>%
+  mutate(category = 
+           factor(category, 
+               levels = c(
+                          "health",
+                          "ed",
+                          "income",
+                          "composite"
+              )
+              )
+           ) %>%
+ggplot() +
+  geom_point( aes(x = category, y = metric, color = category) ) +
+  geom_line(aes(group = keypoints, x = category, y = metric), size = .1) +
+  geom_text(data = tract_ahdi_graph %>% filter(category == "composite"), 
+            aes(label = keypoints, x = "composite" , y = metric,
+                hjust = -.1))
+
+
+
+
+# Education ---------------------------------------------------------------
+
+proper=function(s) gsub("(?<=\\b)([a-z])", "\\U\\1", tolower(s), perl=TRUE)
+
+unique(ed_dist$degree)
+unique(ed_dist$Race)
+
+ed_dist <-read_csv("education_distrbution.csv") %>%
+  mutate(Race = proper(Race)) %>%
+  mutate(
+    degree = factor(degree,
+                    levels = rev(c(
+                      "Less than high school diploma",
+                      "High school graduate",
+                      "Some college or associate's degree",
+                      "Bachelor's degree or higher"
+                    ))
+              ),
+    
+    Race = factor(
+      Race, 
+      levels = rev(c("All",
+                 "White Alone",
+                 "Black Or African American Alone",
+                 "Asian Alone",
+                 "Native Hawaiian And Other Pacific Islander Alone",
+                 "American Indian And Alaska Native Alone",
+                 "Two Or More Races",
+                 "Some Other Race Alone",
+                 "Hispanic Or Latino"
+               #  "White Alone, Not Hispanic Or Latino"
+      ))
+      
+    )
+) %>%
+  filter(!is.na(Race))
+
+
+ed_graph <- 
+ed_dist %>%
+  ungroup() %>%
+  group_by(Sex, Race) %>%
+  arrange(Sex, Race, desc(degree)) %>%
+  mutate(
+    end_pct = cumsum(percent),
+    start_pct = cumsum(percent) - percent,
+    bac_pct = case_when(
+      degree == "Some college or associate's degree" ~ end_pct,
+      TRUE ~ 0
+    ),
+    bac_pct = sum(bac_pct),
+    start_line = start_pct - bac_pct,
+    end_line = start_line + percent,
+    height = (start_line + end_line) / 2,
+    display = 
+      case_when(
+      percent > 10 ~ paste0(round(percent), "%"),
+      TRUE ~ ""
+      )
+  ) 
+
+
+
+pal2 <- rev(brewer.pal(5, "BuPu"))[-5]
+
+ggplot(ed_graph, aes(y = Race))  +
+  geom_segment(aes(x = start_line, xend = end_line, color = degree, yend = Race ), 
+               size = 10, alpha= .8) +
+  scale_color_manual(values = pal2,
+                     name = element_blank(),
+                     guide = guide_legend(reverse = TRUE, nrow = 1)) +
+  new_scale_color() +
+  geom_text(
+    aes(x = height, label = display, y = Race, color = degree),  alpha = 1, hjust =   .5, size = 2.75
+  ) +
+  scale_color_manual(values = c("White",  "Black", "Black", "Black"),
+                     guide = "none") +
+
+  geom_segment(aes(x = start_line - .2, xend = start_line, yend = Race ), color = "white",
+               size = 11, alpha= 1)  +
+  
+  geom_vline(xintercept = 0) +
+  
+  coord_cartesian(clip = 'off') +
+  
+  scale_x_continuous(
+    labels = function(x)
+      paste0(abs(round(x)), "%")
+  ) +
+  
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)
+                   ) +
+  
+  facet_grid(~Sex, scales = "free") +
+  
+  labs(x = "Percentage", y = "", title = "Educational Distributions by Race, Ethnicity, and Sex") +
+ # guides(color = guide_legend(label.position = "bottom")) +
+  theme_classic() +
+  theme(panel.spacing = unit(.5, "lines"), 
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(face = "bold"),
+        strip.text.x = element_text(face = "bold"),
+        #   axis.text.x = element_blank(),
+        #  axis.ticks.x = element_blank(),
+        #  axis.text.y=element_text(face= c("plain", "plain", "plain", "plain", "plain", "plain", "bold")),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = .5, face = "bold")
+  ) 
+
+
+# geographic distribution of education ------------------------------------
+alb_tract <- tracts(state = "VA", county = "003")
+
+ed_tract <- read_csv("geographic_education.csv")  
+
+ed_geo_tract <- alb_tract %>%
+  left_join(ed_tract) %>%
+  mutate(perc_bac = perc_bac/100)
+
+
+  ggplot(ed_geo_tract) +
+    geom_sf( aes(fill = perc_bac), color = "black") +
+    scale_fill_steps(
+      low = "white",
+      high = "blue",
+      space = "Lab",
+      na.value = "grey50",
+      guide = "coloursteps",
+      aesthetics = "fill",
+      n.breaks = 10,
+      labels = percent
+      
+    ) +
+    theme_void() +
+    guides(fill = 
+             guide_colourbar(title.position="top", title.hjust = 0.5,
+                             barwidth = 20)
+    ) +
+           
+    labs(fill = "Percent With Bachelor's Degree") +
+    theme(
+      legend.position = "top",
+   #   legend.box="horizontal",
+      legend.title = element_text()
+    )
+    
+??scale_color_contiuous
+
+# Maybe a different chart -------------------------------------------------
+ed_tract_graph  <-
+  ed_tract %>%
+    rename_with( ~ tolower(.x))  %>%
+    left_join(tract_names) %>%
+    filter(!grepl("UVA", keypoints)) %>%
+    mutate(label = paste0(round(perc_bac, 1), "%"))
+    
+  
+ggplot(ed_tract_graph) +
+  geom_point(
+    aes(x = perc_bac, 
+        y = reorder(keypoints, perc_bac)
+    ),
+  )  +
+  geom_segment(
+    aes(xend = perc_bac, x = 0, y = keypoints, yend = keypoints)
+  ) +
+  
+  geom_text(aes(x = perc_bac + 2.5, y = keypoints, label = label ), hjust = 0) +
+  
+  scale_x_continuous( limits = c(0, 100), breaks = c(seq(30, 100, 10), 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  #  scale_color_manual(values = alb_pal) +
+  geom_vline(xintercept = 60.57, 
+             # linetype = "dashed", 
+             color = "black", 
+             size = .2) +
+  annotate("text", x = 60.57, y = 19.5, 
+           label = "Albemarle County %", 
+           vjust = -.7, 
+           hjust = 0.5, 
+           color = "black", 
+           size = 3.5 ) +
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs( x = "Percent With Bachelor's degree", y = "", title = "Percent with Bachelor's Degrees by Tract") +
+  coord_cartesian(clip = "off") + 
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = 0, vjust = 2, face = "bold"),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line()
+  ) 
   
 
+# Nativity ----------------------------------------------------------------
+load("origins.Rda")
+
+origin
+citizenship
+nativity
 
 
 
@@ -361,4 +771,119 @@ ggplot(life_table_nums, aes(y = final_level, x = stat_display, fill = year)) +
 
 
 
+# housing costs -----------------------------------------------------------
 
+
+house_cost <- read_csv("housing_costs.csv")
+
+house_cost_burden <-
+house_cost %>%
+  select(-denom) %>%
+  gather(burden, pct,-geoid, -county_type) %>%
+  mutate(burden = factor(burden, levels = c(
+    "Not Burdened",
+    "Burdened",
+    "Severely Burdened"
+    
+  ))) %>% 
+  
+  ungroup() %>%
+  group_by(geoid) %>%
+  arrange(geoid, burden) %>%
+  mutate(
+    end_pct = cumsum(pct),
+    start_pct = cumsum(pct) - pct,
+    burden_pct = case_when(
+      burden == "Not Burdened" ~ end_pct,
+      TRUE ~ 0
+    )
+    ) %>%
+
+mutate(
+    burden_pct = sum(burden_pct),
+    start_line = start_pct - burden_pct,
+    end_line = start_line + pct,
+    height = (start_line + end_line) / 2,
+    display = 
+      case_when(
+        pct > .05 ~ paste0(round(pct*100), "%"),
+        TRUE ~ ""
+      )
+  ) %>%
+  left_join(tract_names %>%
+              mutate(geoid = as.character(geoid)) %>%
+            bind_rows(
+              tibble(geoid = "total", keypoints = "Albemarle County")
+              
+            )
+            ) %>%
+filter(!grepl("UVA", keypoints)) %>%
+  mutate(county_type = factor(county_type, levels = c("County", "Census Tracts"))
+           
+           )
+  
+
+house_cost_burden
+
+pal2 <- brewer.pal(4, "BuPu")[-1]
+
+p <-
+ggplot(house_cost_burden, aes(y = reorder(keypoints, end_line )  ))  +
+  geom_segment(aes(x = start_line, xend = end_line, color = burden, yend = keypoints ), 
+               size = 10, alpha= .8) +
+  scale_color_manual(values = pal2,
+                     name = element_blank(),
+                     guide = guide_legend(reverse = FALSE, nrow = 1)) +
+  new_scale_color() +
+  geom_text(
+    aes(x = height, label = display, y = keypoints, color = burden),  alpha = 1, hjust =   .5, size = 2.75
+  ) +
+  scale_color_manual(values = c("Black",  "Black", "White"),
+                     guide = "none") +
+  
+  geom_segment(aes(x = start_line - .002, xend = start_line, yend = keypoints ), color = "white",
+               size = 11, alpha= 1)  +
+  
+  geom_vline(xintercept = 0) +
+  
+  coord_cartesian(clip = 'off') +
+  
+  scale_x_continuous(
+    labels = function(x)
+      paste0(abs(round(x*100)), "%")
+  ) +
+  
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)
+  ) +
+  
+  facet_grid(county_type ~ . ,  switch = "y", scales = "free",  space = "free_y") +
+  
+  labs(x = "Percentage of Renting Households", y = "", title = "Rent Burdened Population by Census Tract") +
+  # guides(color = guide_legend(label.position = "bottom")) +
+  theme_classic() +
+  theme(panel.spacing = unit(.5, "lines"), 
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(face = "bold"),
+        strip.text.x = element_text(face = "bold"),
+        #   axis.text.x = element_blank(),
+        #  axis.ticks.x = element_blank(),
+        #  axis.text.y=element_text(face= c("plain", "plain", "plain", "plain", "plain", "plain", "bold")),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = .5, face = "bold")
+  ) 
+
+jpeg(filename = "../graphs/housing_costs.jpg", height = 40*72, width = 45*72, units = 'px', res = 300)
+
+pg <- ggplotGrob(p)
+
+for(i in which(grepl("strip-r", pg$layout$name))){
+  pg$grobs[[i]]$layout$clip <- "off"
+}
+
+pg$layout$clip[pg$layout$name=="panel"] = "off"
+
+
+grid::grid.draw(pg)
+
+dev.off()

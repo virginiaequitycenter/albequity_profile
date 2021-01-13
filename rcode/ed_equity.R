@@ -56,7 +56,8 @@ dat$pop <- rownames(eq2019)
 
 
 
-dat
+dat %>%
+  mutate( sus_pct = suspended/total * 100)
 
 
 
