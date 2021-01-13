@@ -453,7 +453,11 @@ ggplot(sex_age, aes(y = age_group, x = stat_display, fill = sex)) +
 
 ## Do we want to graph this? 
 ## Still need AHDI of the USA
-ahdi_table <- read_csv("ahdi_table.csv")
+ahdi_table <- read_csv("ahdi_table.csv") %>%
+  mutate(
+  case_when(county == "total")
+  
+  )
 ahdi_table
 View(ahdi_table)
 
@@ -723,7 +727,7 @@ ed_race_pal <- rev(brewer.pal(5, "BuPu"))[-5]
 ed_race <- 
 ggplot(ed_graph, aes(y = Race))  +
   geom_segment(aes(x = start_line, xend = end_line, color = degree, yend = Race ), 
-               size = 14, alpha= .8) +
+               size = 14, alpha= .7) +
   scale_color_manual(values = ed_race_pal,
                      name = element_blank(),
                      guide = guide_legend(reverse = TRUE, nrow = 1)) +
@@ -909,6 +913,166 @@ bac_deg_graph
 dev.off()
   
 
+
+# Within Schools ----------------------------------------------------------
+## Student Discipline
+student_data <- read_csv("student_data.csv") 
+
+
+suspended  <-
+  ggplot(student_data) +
+
+  geom_segment(
+    aes(xend = Suspended, x = 0, y = pop, yend = pop),
+    size = 1
+  ) +
+  
+  geom_point(
+    aes(x = Suspended, 
+        y = pop
+    ),
+    color = map_pal[8],
+    size = 3
+  )  +
+  
+  geom_text(aes(x = Suspended + .2, y = pop, label = paste0(round(Suspended), "%") ), hjust = 0) +
+  
+  scale_x_continuous( limits = c(0, 10), breaks = c(seq(0, 10, 1), 0), labels = function(x) paste0(x,"%")) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs( x = "Percent Suspended from School", y = "", title = "Percent Students Suspended from School") +
+  coord_cartesian(clip = "off") + 
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
+    
+  ) 
+
+
+jpeg(filename = "../graphs/suspended.jpg", height = 25*72, width = 25*72, units = 'px', res = 300)
+
+suspended
+
+dev.off()
+
+
+## Absences
+absent  <-
+  ggplot(student_data) +
+
+  geom_segment(
+    aes(xend = `Chronically Absent`, x = 0, y = pop, yend = pop),
+    size = 1
+  ) +
+  
+  geom_point(
+    aes(x = `Chronically Absent`, 
+        y = pop
+    ),
+    color = map_pal[8],
+    size = 3
+  )  +
+  
+  geom_text(aes(x = `Chronically Absent` + .4, y = pop, label = paste0(round(`Chronically Absent`), "%") ), hjust = 0) +
+  
+  scale_x_continuous( limits = c(0, 15), breaks = c(seq(0, 15, 2.5), 0), labels = function(x) paste0(x,"%")) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs( x = "Percent Chronically Absent from School", y = "", title = "Percent Students Chronicaly Absent from School") +
+  coord_cartesian(clip = "off") + 
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
+    
+  ) 
+
+
+jpeg(filename = "../graphs/absent.jpg", height = 25*72, width = 25*72, units = 'px', res = 300)
+
+absent
+
+dev.off()
+
+
+
+ap  <-
+  ggplot(student_data) +
+
+  geom_segment(
+    aes(xend = `Enrolled in AP Courses`, x = 0, y = pop, yend = pop), 
+    size = 1
+  ) +
+  
+  geom_point(
+    aes(x = `Enrolled in AP Courses`, 
+        y = pop
+    ),
+    color = map_pal[8],
+    size = 3  )  +
+  
+  geom_text(aes(x = `Enrolled in AP Courses` + 2, y = pop, label = paste0(round(`Enrolled in AP Courses`), "%") ), hjust = 0) +
+  
+  scale_x_continuous( limits = c(0, 60), breaks = c(seq(0, 60, 10), 0), labels = function(x) paste0(x,"%")) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs( x = "Percent HS Students Enrolled in AP Classes", y = "", title = "Percent Students Enrolled in AP Classes") +
+  coord_cartesian(clip = "off") + 
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
+    
+  ) 
+
+
+jpeg(filename = "../graphs/ap.jpg", height = 25*72, width = 25*72, units = 'px', res = 300)
+
+ap
+
+dev.off()
+
+
 # Nativity ----------------------------------------------------------------
 load("origins.Rda")
 
@@ -969,7 +1133,10 @@ mutate(
 filter(!grepl("UVA", keypoints)) %>%
   mutate(county_type = factor(county_type, levels = c("County", "Census Tracts"))
            
-           )
+           ) %>%
+  group_by(geoid) %>%
+  mutate(end_line_order = max(end_line)) %>%
+  ungroup()
   
 
 house_cost_burden
@@ -977,7 +1144,7 @@ house_cost_burden
 house_pal <- brewer.pal(4, "BuPu")[-1]
 
 p <-
-ggplot(house_cost_burden, aes(y = reorder(keypoints, end_line )  ))  +
+ggplot(house_cost_burden, aes(y = reorder(keypoints, end_line_order )  ))  +
   geom_segment(aes(x = start_line, xend = end_line, color = burden, yend = keypoints ), 
                size = 10, alpha= .8) +
   scale_color_manual(values = house_pal,
@@ -1206,6 +1373,27 @@ alice_thresh_gg
 dev.off()
 
 
+
+# Gini Index --------------------------------------------------------------
+
+gini_index <- read_csv("gini_index.csv")
+
+gini_plot <-
+ggplot(gini_index, aes(x = year, y = estimate)) +
+  geom_line(size = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_classic() +
+  labs(y = "", x = "", title = "Gini Index of Income Inequality") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4)
+  )
+
+jpeg(filename = "../graphs/gini_index.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+gini_plot
+
+dev.off()
 
 
 

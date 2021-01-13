@@ -868,6 +868,80 @@ disag_ed_5B_tract %>%
   
 write_csv(geo_ed, path = "geographic_education.csv")
 
+
+# County School Education Stats -------------------------------------------
+
+## Albemarle Equity Table
+all <- 14318
+gifted <- 1188
+sped <- 1188
+
+
+All  <- c(14318, 1188, 1851, 984, 721, 222, 315, 1039, 677, 677)
+Asian <- c(725, 88, 66, 47, 14, 0, 0, 77, 37, 45)
+Black <- c(1562, 42, 367, 137, 117, 47, 66, 52, 29, 104)
+Hispanic <- c( 2037, 52, 262, 170, 132,  27, 34, 68, 46, 96)
+White <- c(9089,  932, 1041, 567, 414, 125, 178, 800, 530, 703)
+Races2 <- c( 905, 74, 115, 63, 44, 23, 37, 42, 35, 58)
+Econ_disadv <- c(4679, 121, 902,563,355, 148, 224, 163, 85, 243)
+Els  <- c(1466, 20, 176, 129,  88, 12, 16, 30, 17, 52)
+Swd <- c(1855, 24, 1855,  223, 143, 94, 146, 31, 13, 112)
+
+eq2019 <- rbind(
+  All,
+  Asian,
+  Black,
+  Hispanic,
+  White,
+  Races2,
+  Econ_disadv,
+  Els,
+  Swd
+)
+
+dimnames(eq2019)[[2]] <- c("total", "gifted" , "swd", "absent", "absent_period", "suspended", "suspension_incidents", "ms_inhs_math", "advanced", "ontime_grad")
+dat <- as_tibble(eq2019)
+dat$pop <- str_to_sentence(rownames(eq2019))
+
+
+dat_cleaned <- 
+dat %>%
+  transmute( pop, 
+             `Suspended` = suspended/total * 100,
+             `Chronically Absent` = absent/total *100) %>%
+mutate(
+  pop = case_when(
+  pop == "Races2"  ~ "Two or more races",
+  pop == "Econ_disadv" ~ "Economically disadvantaged",
+  pop == "Els" ~ "English language learner",
+  pop == "Swd" ~ "Students with disabilities",
+  TRUE ~ pop
+  
+    
+    )
+ ) %>%
+  left_join(
+
+
+ap_pct <- 
+  tibble(
+   pop =  c("All", "Asian", 
+      "Black",
+      "Hispanic", 
+      "White", 
+      "Two or more races", 
+      "Economically disadvantaged", 
+      "English language learner", 
+      "Students with disabilities"),
+   `Enrolled in AP Courses` =
+     c(37, 53, 13, 18, 43, 37, 14, 6, 5
+     )
+    )
+)
+
+write_csv(dat_cleaned, "student_data.csv")
+
+
 # Nativity ----------------------------------------------------------------
 
 # Nativity in 2019
@@ -1041,8 +1115,22 @@ write_csv(alice_hhinc_thresh, path = "alice_thresh.csv")
 
 
 # Gini Index to match Alice at county level ACS1. 
+gini_index <-
+map_df(seq(2010,2018,2),
+~get_acs(geography = "county", 
+        table = "B19083", 
+        state = "VA", 
+        county = "003", 
+        survey = "acs1", 
+        year = .x, 
+        cache_table = TRUE) %>%
+  mutate(year = .x)
+
+)
 
 
+
+write_csv(gini_index, path = "gini_index.csv")
 
 
 # Cost Burdened Renters ---------------------------------------------------
