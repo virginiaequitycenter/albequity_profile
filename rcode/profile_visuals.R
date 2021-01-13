@@ -151,6 +151,8 @@ race_trends_pie <-
          hjust = ifelse(middle > pi, 1, 0),
          vjust = ifelse(middle < pi/2 | middle > 3 * pi/2, 0, 1))
   
+pie_pal <- sample(brewer.pal(8, "BuPu")[-1], 7, replace = FALSE)
+race_pie <-
 ggplot(race_trends_pie) +
   geom_arc_bar(aes(x0 = 0, y0 = 0, r0 = 0, r = 1,
                    start = start, end = end, fill = final_level)) +
@@ -162,7 +164,7 @@ ggplot(race_trends_pie) +
                      name = "", breaks = NULL, labels = NULL) +
   # scale_y_continuous(limits = c(-1, 1),      # Adjust so labels are not cut off
   #                    name = "", breaks = NULL, labels = NULL) +
-  scale_fill_manual(values =c(rev(alb_pal))) +
+  scale_fill_manual(values =c(pie_pal)) +
    guides(fill = guide_legend(ncol = 1, label.position = "right", reverse = TRUE)) +  
   theme_void() +
   labs(fill = "") +
@@ -170,6 +172,13 @@ ggplot(race_trends_pie) +
     legend.position = "right"
   )
 
+
+
+jpeg(filename = "../graphs/race_2019.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
+
+race_pie
+
+dev.off()
 
 
 # Try to do them all at once ----------------------------------------------
@@ -359,16 +368,18 @@ alb_dems %>%
 
 life_table_nums
 
+age_pal <- brewer.pal(3, "BuPu")[c(2, 3)]
 
+year_age <-
 ggplot(life_table_nums, aes(y = final_level, x = stat_display, fill = year)) +
   geom_col(alpha = .9) +
-  scale_fill_manual(values = alb_pal)  +
+  scale_fill_manual(values = age_pal)  +
   geom_text( aes(y = final_level, x = label_pos, label = paste0(stat, "%")), size = 3, inherit.aes = FALSE
             ) +
   scale_x_continuous(labels = function(x){paste0(abs(x), "%")}, limits = c(-20, 25), breaks = c(seq(-20, 20, 5), 0)) +
   
-  annotate("text", y = 13.5, x = -15, label = "2010" ) +
-  annotate("text", y = 13.5, x = 15, label = "2019" ) +
+  annotate("text", y = 13.5, x = -15, label = "2010", fontface = "bold" ) +
+  annotate("text", y = 13.5, x = 15, label = "2019", fontface = "bold"  ) +
   coord_cartesian(clip = 'off') +
   
   geom_vline(xintercept  = 0) +
@@ -385,6 +396,12 @@ ggplot(life_table_nums, aes(y = final_level, x = stat_display, fill = year)) +
     axis.ticks.x = element_line()
   )
 
+
+jpeg(filename = "../graphs/year_age.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+year_age
+
+dev.off()
 
 # Age by Sex --------------------------------------------------------------
 sex_age <- read_csv("sex_age.csv") %>%
@@ -423,15 +440,16 @@ sex_age <- read_csv("sex_age.csv") %>%
 
 sex_age
    
+sex_age_graph <-
 ggplot(sex_age, aes(y = age_group, x = stat_display, fill = sex)) +
   geom_col(alpha = .9) +
-  scale_fill_manual(values = alb_pal)  +
+  scale_fill_manual(values = age_pal)  +
   geom_text( aes(y = age_group, x = label_pos, label = paste0(round(pct, 1), "%")), size = 3, inherit.aes = FALSE
   ) +
   scale_x_continuous(labels = function(x){paste0(abs(x), "%")}, limits = c(-20, 25), breaks = c(seq(-20, 20, 5), 0)) +
   
-  annotate("text", y = 13.5, x = -15, label = "Male" ) +
-  annotate("text", y = 13.5, x = 15, label = "Female" ) +
+  annotate("text", y = 13.5, x = -15, label = "Male", fontface = "bold" ) +
+  annotate("text", y = 13.5, x = 15, label = "Female", fontface = "bold" ) +
   coord_cartesian(clip = 'off') +
   
   geom_vline(xintercept  = 0) +
@@ -448,6 +466,12 @@ ggplot(sex_age, aes(y = age_group, x = stat_display, fill = sex)) +
     axis.ticks.x = element_line()
   )
 
+jpeg(filename = "../graphs/sex_age.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+sex_age_graph
+
+dev.off()
+
 
 # AHDI  -------------------------------------------------------------------
 
@@ -455,7 +479,9 @@ ggplot(sex_age, aes(y = age_group, x = stat_display, fill = sex)) +
 ## Still need AHDI of the USA
 ahdi_table <- read_csv("ahdi_table.csv") %>%
   mutate(
-  case_when(county == "total")
+  county = case_when(county == "total" ~ "Virginia",
+            TRUE ~ county
+            )
   
   )
 ahdi_table
@@ -857,15 +883,18 @@ ed_tract_graph  <-
     
 bac_deg_graph  <-
 ggplot(ed_tract_graph) +
+  
+  geom_segment(
+    aes(xend = perc_bac, x = 0, y = keypoints, yend = keypoints), size = 1
+  ) +
   geom_point(
     aes(x = perc_bac, 
         y = reorder(keypoints, perc_bac)
     ),
-    color = map_pal[8]
+    color = map_pal[8],size = 3
   )  +
-  geom_segment(
-    aes(xend = perc_bac, x = 0, y = keypoints, yend = keypoints)
-  ) +
+  
+
   
   geom_text(aes(x = perc_bac + 2.5, y = keypoints, label = label ), hjust = 0) +
   
@@ -916,11 +945,27 @@ dev.off()
 
 # Within Schools ----------------------------------------------------------
 ## Student Discipline
-student_data <- read_csv("student_data.csv") 
+student_data <- read_csv("student_data.csv") %>%
+  mutate(pop  = factor(pop, levels = rev(c(
+    "All",
+    "White",
+    "Black",
+    "Asian",
+    "Two or more races",
+    "Hispanic",
+    "English language learner",
+    "Students with disabilities",
+    "Economically disadvantaged"
+  ))
+)
+ )
 
 
+
+
+## Put the "All" bar going down. 
 suspended  <-
-  ggplot(student_data) +
+  ggplot(student_data[!student_data$pop == "All" ,]) +
 
   geom_segment(
     aes(xend = Suspended, x = 0, y = pop, yend = pop),
@@ -934,6 +979,20 @@ suspended  <-
     color = map_pal[8],
     size = 3
   )  +
+  
+  geom_vline(xintercept = student_data[student_data$pop == "All" , "Suspended"][[1]], 
+              linetype = "dashed", 
+             color = "black", 
+             size = .2) +
+  annotate("text", 
+           x = student_data[student_data$pop == "All" , "Suspended"][[1]], 
+           y = 9, 
+           label = "All Students", 
+           vjust = -.7, 
+           hjust = 0.5, 
+           color = "black", 
+           size = 3.5 ) +
+  
   
   geom_text(aes(x = Suspended + .2, y = pop, label = paste0(round(Suspended), "%") ), hjust = 0) +
   
@@ -972,7 +1031,7 @@ dev.off()
 
 ## Absences
 absent  <-
-  ggplot(student_data) +
+  ggplot(student_data[!student_data$pop == "All" ,]) +
 
   geom_segment(
     aes(xend = `Chronically Absent`, x = 0, y = pop, yend = pop),
@@ -986,6 +1045,19 @@ absent  <-
     color = map_pal[8],
     size = 3
   )  +
+  
+  geom_vline(xintercept = student_data[student_data$pop == "All" , "Chronically Absent"][[1]], 
+             linetype = "dashed", 
+             color = "black", 
+             size = .2) +
+  annotate("text", 
+           x = student_data[student_data$pop == "All" , "Chronically Absent"][[1]], 
+           y = 9, 
+           label = "All Students", 
+           vjust = -.7, 
+           hjust = 0.5, 
+           color = "black", 
+           size = 3.5 ) +
   
   geom_text(aes(x = `Chronically Absent` + .4, y = pop, label = paste0(round(`Chronically Absent`), "%") ), hjust = 0) +
   
@@ -1024,7 +1096,7 @@ dev.off()
 
 
 ap  <-
-  ggplot(student_data) +
+  ggplot(student_data[!student_data$pop == "All" ,]) +
 
   geom_segment(
     aes(xend = `Enrolled in AP Courses`, x = 0, y = pop, yend = pop), 
@@ -1037,6 +1109,19 @@ ap  <-
     ),
     color = map_pal[8],
     size = 3  )  +
+  
+  geom_vline(xintercept = student_data[student_data$pop == "All" , "Enrolled in AP Courses"][[1]], 
+             linetype = "dashed", 
+             color = "black", 
+             size = .2) +
+  annotate("text", 
+           x = student_data[student_data$pop == "All" , "Enrolled in AP Courses"][[1]], 
+           y = 9, 
+           label = "All Students", 
+           vjust = -.7, 
+           hjust = 0.5, 
+           color = "black", 
+           size = 3.5 ) +
   
   geom_text(aes(x = `Enrolled in AP Courses` + 2, y = pop, label = paste0(round(`Enrolled in AP Courses`), "%") ), hjust = 0) +
   
@@ -1362,7 +1447,6 @@ ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
   facet_wrap(~race, scales = "free_x")
 
 
-
 alice_thresh_gg
 
 
@@ -1394,6 +1478,117 @@ jpeg(filename = "../graphs/gini_index.jpg", height = 20*72, width = 20*72, units
 gini_plot
 
 dev.off()
+
+
+# Life Expectancy ---------------------------------------------------------
+life_exp <- read_csv("tract_ahdi.csv") %>%
+  rename_with(~ tolower(.x))  %>%
+  left_join(tract_names) %>%
+  select(geoid, keypoints, life_exp) %>%
+  mutate(geo = "Census Tract") %>%
+  
+  bind_rows(
+    read_csv("race_exp.csv") %>%
+      select(
+        geoid = fips,
+        keypoints = demographic,
+        life_exp = number
+      ) %>%
+      mutate(
+        geo = case_when(keypoints == "total" ~ "Overall",
+                        TRUE ~ "Race/Ethnicity"),
+        
+        
+        keypoints = case_when(
+          keypoints == "total" ~ "Albemarle County",
+          TRUE ~ str_to_sentence(keypoints)
+        )
+      ) %>%
+      filter(!is.na(life_exp))
+  ) %>%
+  mutate(geo = factor(geo,
+ levels = c("Overall", "Race/Ethnicity", "Census Tract"))
+           
+    
+    
+  ) %>%
+  filter(!is.na(life_exp)) %>%
+  mutate(plot_exp = life_exp  - 83,
+         label_pos = 
+           case_when(
+             plot_exp < 0 ~ plot_exp - 2,
+             plot_exp > 0 ~ plot_exp + 2
+           ),
+         
+         neg =      case_when(
+           plot_exp < 0 ~ "neg",
+           plot_exp > 0 ~ "pos"
+         )
+         
+         )
+
+
+life_exp
+
+
+
+life_exp_graph  <-
+  ggplot(life_exp) +
+  
+  geom_segment(
+    aes(xend = plot_exp, x = 0, y = reorder(keypoints, life_exp), yend = keypoints), 
+    size = 1
+  ) +
+  
+  geom_point(
+    aes(x = plot_exp, 
+        y = keypoints,
+        color = neg
+    ),
+   size = 3  
+    )  +
+  
+ scale_color_manual(values = alice_pal[c(1, 3)]) +
+
+  geom_text(aes(x = label_pos , y = keypoints, label =  round(life_exp, 1) ), hjust = .5) +
+  
+  scale_x_continuous( limits = c(-20, 20), breaks = seq(-18, 17, 5), labels = function(x) x + 83 ) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  geom_vline(xintercept = 0) +
+
+  
+  labs( x = "Average Life Expectancy", y = "", title = "Albemarle County Life Expectancy") +
+  coord_cartesian(clip = "off") + 
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm"),
+    panel.spacing = unit(1, "lines"), 
+    strip.background = element_blank(),
+    strip.placement = "outside",
+    strip.text.y = element_text(face = "bold"),
+    strip.text.x = element_text(face = "bold")
+    
+  ) +
+
+  facet_grid(geo ~ . ,  switch = "y", scales = "free",  space = "free_y") 
+  
+
+jpeg(filename = "../graphs/life_exp.jpg", height = 45*72, width = 35*72, units = 'px', res = 300)
+
+life_exp_graph
+
+dev.off()
+
 
 
 

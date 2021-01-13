@@ -234,7 +234,6 @@ life_expectancies <-
   ))
 
 
-
 # Census AHDI County Data -------------------------------------------------
 # Pull ACS 1 for the few that you can and pull ACS 5 for charlottesville. 
 # Get Fips Codes
@@ -419,7 +418,7 @@ le_alb <-
 life_expectancies %>%
   filter(county == "Albemarle")
 
-le_alb
+write_csv(le_alb, path = "race_exp.csv")
 
 # We might only get differential life expectancy tbh
 
