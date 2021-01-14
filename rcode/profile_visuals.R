@@ -18,6 +18,7 @@ setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data
 ## load up the packages we will need:
 
 library(tidyverse)
+library(readxl)
 library(viridis)
 library(ggforce) # for 'geom_arc_bar'
 library(RColorBrewer)
@@ -258,6 +259,40 @@ ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = fina
 jpeg(filename = "../graphs/race_2019.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
 
 race_pie
+
+dev.off()
+
+
+# Historical race over time ----------------------------------------------
+race_dec <- read_excel("albco_profile_raceovertime.xlsx")
+
+race_dec_long <- race_dec %>% 
+  select(-c(white_per, nonwhite_per)) %>% 
+  pivot_longer(-c(year, total_wcc, total_se), names_to = "poptype", values_to = "pop") %>% 
+  mutate(pop_percent = round((pop/total_se)*100,1),
+         poptype = fct_recode(poptype, 
+                              "White" = "white_se",
+                              "Not White" = "nonwhite_se"))
+
+dec_pal <- brewer.pal(5, "BuPu")[c(2,5)]
+
+p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
+  geom_line(size = 1) +
+  scale_y_continuous(limits = c(0,100)) +
+  scale_x_continuous(breaks = seq(1790,2010,10)) +
+  scale_color_manual(values = dec_pal) +
+  theme_classic() +
+  labs(x="Year", y="Population %", title = "", color = "") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    legend.position = "top",
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4),
+    axis.text.x = element_text(angle = 45, vjust = 0.5)
+  )
+
+jpeg(filename = "graphs/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+p
 
 dev.off()
 
@@ -1258,16 +1293,25 @@ citizenship <- citizenship %>%
                              "US citizen, naturalized" = "U.S. citizen by naturalization",
                              "Not US citizen" = "Not a U.S. citizen"))
 
+donut_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
+
 # Plot
-ggplot(citizenship, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=status)) +
+p <- ggplot(citizenship, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=status)) +
   geom_rect() +
   coord_polar(theta="y") +
   xlim(c(1.5, 4)) +
-  geom_text(aes(label=paste0(round(pct,0),"%"),x=c(3.75, 3.5, 3.75, 3.75, 3.75),y=(ymin+ymax)/2), color = "black") +
+  scale_fill_manual(values = donut_pal) +
+  geom_text(aes(label=paste0(round(pct,1),"%"),x=c(3.75, 3.5, 3.75, 3.75, 3.75),y=(ymin+ymax)/2), color = "white") +
   theme_void() +
   theme(legend.position=c(.525, .5)) +
   theme(legend.title = element_blank()) +
   theme(legend.text = element_text(size = 8))
+
+jpeg(filename = "../graphs/citizen.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+p
+
+dev.off()
 
 # wanted to add a marker to identify foreign-born; this didn't work
   # geom_bracket(
@@ -1293,15 +1337,22 @@ origin <- origin %>%
          ymin = c(0,head(ymax, n=-1)))
 
 # Plot
-ggplot(origin, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Continent)) +
+p <- ggplot(origin, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Continent)) +
   geom_rect() +
   coord_polar(theta="y") +
   xlim(c(1.5, 4)) +
-  geom_text(aes(label=paste0(round(pct,1),"%"),x=3.5,y=(ymin+ymax)/2), color = "black") +
+  scale_fill_manual(values = donut_pal) +
+  geom_text(aes(label=paste0(round(pct,1),"%"),x=3.5,y=(ymin+ymax)/2), color = "white") +
   theme_void() +
   theme(legend.position=c(.5, .5)) +
   theme(legend.title = element_blank()) +
   theme(legend.text = element_text(size = 8))
+
+jpeg(filename = "../graphs/origin.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+p
+
+dev.off()
 
 
 # housing costs -----------------------------------------------------------
