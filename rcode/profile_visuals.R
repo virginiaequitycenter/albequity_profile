@@ -603,7 +603,6 @@ ahdi_table <- read_csv("ahdi_table.csv") %>%
 ahdi_table
 View(ahdi_table)
 
-
 tract_names <- read_csv("tract_names.csv") %>%
   select(-contains("X"))
 
@@ -1775,3 +1774,90 @@ jpeg(filename = "../graphs/life_exp.jpg", height = 45*72, width = 35*72, units =
 life_exp_graph
 
 dev.off()
+
+
+# AHDI Table  --------------------------------------------------------------
+library(reactable)
+
+ahdi_table <- read_csv("ahdi_table.csv") %>%
+  mutate(
+    county = case_when(county == "total" ~ "Virginia",
+                       TRUE ~ county
+    ))
+
+hlth_cols <- "life_exp"
+ed_cols <- c("hs_grad", "bac_deg", "grad_deg", "school_enroll")
+inc_cols <- "pers_earn"
+ahdi_sub <- ahdi_table[, c("county", "ahdi", hlth_cols, ed_cols, inc_cols)]
+
+ahdi_sub <- ahdi_sub %>% mutate(county = recode(county, 
+                                                "Charlottesville City" = "Charlottesville"))
+
+ahdi_pal <- function(x) rgb(colorRamp(c("#e5f5e0", "#238b45"))(x), maxColorValue = 255) # colorbrewer Greens 2/7
+hlth_pal <- function(x) rgb(colorRamp(c("#fff5f0", "#fc9272"))(x), maxColorValue = 255) # colorbrewer Reds 1/4
+educ_pal <- function(x) rgb(colorRamp(c("#deebf7", "#2171b5"))(x), maxColorValue = 255) # colorbrewer Blues 2/7
+earn_pal <- function(x) rgb(colorRamp(c("#efedf5", "#6a51a3"))(x), maxColorValue = 255) # colorbrewer Blues 2/7
+
+reactable(ahdi_sub, 
+          columns = list(
+            county = colDef(name = ""),
+            ahdi = colDef(name = "American HDI", align = "center",
+                          style = function(value) {
+                            normalized <- (value - min(ahdi_sub$ahdi)) / (max(ahdi_sub$ahdi) - min(ahdi_sub$ahdi))
+                            color <- ahdi_pal(normalized)
+                            list(background = color)
+                            },
+                          format = colFormat(digits = 2)),
+            life_exp = colDef(name = "Life Expectancy at Birth", align = "center",
+                              style = function(value) {
+                                normalized <- (value - min(ahdi_sub$life_exp)) / (max(ahdi_sub$life_exp) - min(ahdi_sub$life_exp))
+                                color <- hlth_pal(normalized)
+                                list(background = color)
+                              },
+                              format = colFormat(digits = 1)),
+            hs_grad = colDef(name = "HS Degree or more (Adults 25+)", align = "center",
+                             style = function(value) {
+                               normalized <- (value - min(ahdi_sub$hs_grad)) / (max(ahdi_sub$hs_grad) - min(ahdi_sub$hs_grad))
+                               color <- educ_pal(normalized)
+                               list(background = color)
+                             },
+                             format = colFormat(digits = 1, suffix = "%")),
+            bac_deg = colDef(name = "Bachelors Degree or more (Adults 25+)", align = "center",
+                             style = function(value) {
+                               normalized <- (value - min(ahdi_sub$bac_deg)) / (max(ahdi_sub$bac_deg) - min(ahdi_sub$bac_deg))
+                               color <- educ_pal(normalized)
+                               list(background = color)
+                             },
+                             format = colFormat(digits = 1, suffix = "%")),
+            grad_deg = colDef(name = "Grad/ Professional Degree (Adults 25+)", align = "center",
+                              style = function(value) {
+                                normalized <- (value - min(ahdi_sub$grad_deg)) / (max(ahdi_sub$grad_deg) - min(ahdi_sub$grad_deg))
+                                color <- educ_pal(normalized)
+                                list(background = color)
+                              },
+                              format = colFormat(digits = 1, suffix = "%")),
+            school_enroll = colDef(name = "School Enrollment (Ages 3-24)", align = "center",
+                                   style = function(value) {
+                                     normalized <- (value - min(ahdi_sub$school_enroll)) / (max(ahdi_sub$school_enroll) - min(ahdi_sub$school_enroll))
+                                     color <- educ_pal(normalized)
+                                     list(background = color)
+                                   },
+                                   format = colFormat(digits = 1, suffix = "%")),
+            pers_earn = colDef(name = "Median Personal Earnings (Ages 16+ FT)", align = "center",
+                               style = function(value) {
+                                 normalized <- (value - min(ahdi_sub$pers_earn)) / (max(ahdi_sub$pers_earn) - min(ahdi_sub$pers_earn))
+                                 color <- earn_pal(normalized)
+                                 list(background = color)
+                               },
+                               format = colFormat(digits = 0, separators = TRUE, prefix = "$"))
+            ),
+          columnGroups = list(
+            colGroup(name = "Health", columns = hlth_cols),
+            colGroup(name = "Access to Knowledge", columns = ed_cols),
+            colGroup(name = "Living Standards", columns = inc_cols)
+            )
+          )
+
+# look for better way to save
+# SO says saveWidget from htmlwidgets and webshot from webshot
+# but this isn't working for me...
