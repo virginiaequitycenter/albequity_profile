@@ -234,7 +234,6 @@ life_expectancies <-
   ))
 
 
-
 # Census AHDI County Data -------------------------------------------------
 # Pull ACS 1 for the few that you can and pull ACS 5 for charlottesville. 
 # Get Fips Codes
@@ -419,7 +418,7 @@ le_alb <-
 life_expectancies %>%
   filter(county == "Albemarle")
 
-le_alb
+write_csv(le_alb, path = "race_exp.csv")
 
 # We might only get differential life expectancy tbh
 
@@ -868,6 +867,80 @@ disag_ed_5B_tract %>%
   
 write_csv(geo_ed, path = "geographic_education.csv")
 
+
+# County School Education Stats -------------------------------------------
+
+## Albemarle Equity Table
+all <- 14318
+gifted <- 1188
+sped <- 1188
+
+
+All  <- c(14318, 1188, 1851, 984, 721, 222, 315, 1039, 677, 677)
+Asian <- c(725, 88, 66, 47, 14, 0, 0, 77, 37, 45)
+Black <- c(1562, 42, 367, 137, 117, 47, 66, 52, 29, 104)
+Hispanic <- c( 2037, 52, 262, 170, 132,  27, 34, 68, 46, 96)
+White <- c(9089,  932, 1041, 567, 414, 125, 178, 800, 530, 703)
+Races2 <- c( 905, 74, 115, 63, 44, 23, 37, 42, 35, 58)
+Econ_disadv <- c(4679, 121, 902,563,355, 148, 224, 163, 85, 243)
+Els  <- c(1466, 20, 176, 129,  88, 12, 16, 30, 17, 52)
+Swd <- c(1855, 24, 1855,  223, 143, 94, 146, 31, 13, 112)
+
+eq2019 <- rbind(
+  All,
+  Asian,
+  Black,
+  Hispanic,
+  White,
+  Races2,
+  Econ_disadv,
+  Els,
+  Swd
+)
+
+dimnames(eq2019)[[2]] <- c("total", "gifted" , "swd", "absent", "absent_period", "suspended", "suspension_incidents", "ms_inhs_math", "advanced", "ontime_grad")
+dat <- as_tibble(eq2019)
+dat$pop <- str_to_sentence(rownames(eq2019))
+
+
+dat_cleaned <- 
+dat %>%
+  transmute( pop, 
+             `Suspended` = suspended/total * 100,
+             `Chronically Absent` = absent/total *100) %>%
+mutate(
+  pop = case_when(
+  pop == "Races2"  ~ "Two or more races",
+  pop == "Econ_disadv" ~ "Economically disadvantaged",
+  pop == "Els" ~ "English language learner",
+  pop == "Swd" ~ "Students with disabilities",
+  TRUE ~ pop
+  
+    
+    )
+ ) %>%
+  left_join(
+
+
+ap_pct <- 
+  tibble(
+   pop =  c("All", "Asian", 
+      "Black",
+      "Hispanic", 
+      "White", 
+      "Two or more races", 
+      "Economically disadvantaged", 
+      "English language learner", 
+      "Students with disabilities"),
+   `Enrolled in AP Courses` =
+     c(37, 53, 13, 18, 43, 37, 14, 6, 5
+     )
+    )
+)
+
+write_csv(dat_cleaned, "student_data.csv")
+
+
 # Nativity ----------------------------------------------------------------
 
 # Nativity in 2019
@@ -959,27 +1032,107 @@ save(origin, citizenship, nativity, file = "origins.Rda")
 
 # Cost of Living ALICE Estimates. We do have that.  -----------------------
 # https://www.unitedforalice.org/virginia
+# url <- "https://www.unitedforalice.org/Attachments/StateDataSheet/DataSheet_VA.xlsx"
+# destfile <- "alice_va.xlsx"
+# download.file(url, destfile)
 
-# Median HHInc by Race
-# S1901
-# Alice Threshold vs. Median income together. 
-# Descriptive stats abotu %income necessary to live here as thats changed over time. 
 
 # Stacked Area Chart of Poverty, Alice, + Alice
+sheets <- excel_sheets("alice_va.xlsx")
 
+alice_va <- read_excel("alice_va.xlsx", sheet = sheets[2]) %>%
+  rename_with(~ tolower(str_replace_all(.x, ":|-| ", "_") )
+              ) %>%
+  filter(geo.id2 == "51003")
 
+alice_alb <-
+alice_va %>%
+  select(year, household, poverty_household, alice_household, above_alice_household) %>%
+  gather(level, number, -year, -household) %>%
+  mutate(pct = number/household*100 )
+  
 
-# Median Household income. Along with the Alice $$ value. 
+write_csv(alice_alb, path = "alice_alb_hhs.csv")
+
+# Alice Level & Median HHInc by Race
+# S1901 
+# B19013
 
 #  Household incomes by race. 
 # B190001A-I
 
+table_list <- c(
+"B19013",
+"B19013A", 
+"B19013B", 
+"B19013C", 
+"B19013D", 
+"B19013E", 
+"B19013F", 
+"B19013G", 
+"B19013H",
+"B19013I"  
+)
+
+year_list <- seq(2010,2018, 2)
+year_tables <- expand.grid(table_list, year_list)
+
+med_hhinc <- 
+  map2_df(year_tables$Var1, year_tables$Var2,
+ ~ get_acs(geography = "county", 
+                               table = .x, 
+                               state = "VA", 
+                               county = "003", 
+                               survey = "acs5", 
+                               year = .y, 
+                               cache_table = TRUE)  %>%
+   mutate(year = .y)
+
+)
+
+
+# Alice Threshold vs. Median income together. 
+
+alice_hhinc_thresh <-
+med_hhinc %>%
+  left_join(acs5 %>% rename(variable = name)) %>%
+ separate(concept, c(NA, NA, "race"), sep = "\\(") %>%
+  mutate(
+    race = case_when(
+    is.na(race) ~ "Overall",
+    TRUE ~ str_trim(str_replace_all(proper(race), "\\)|Householder|Alone", ""))
+    )
+  ) %>%
+  select(year, race, `Median Household Income` = estimate) %>%
+left_join(
+alice_va %>%
+  select(year, `ALICE Threshold` = alice_threshold___hh_under_65) 
+) #%>%
+#  gather(estimate, stat, -year, -race)
+
+write_csv(alice_hhinc_thresh, path = "alice_thresh.csv")
+
 
 # Gini Index to match Alice at county level ACS1. 
+gini_index <-
+map_df(seq(2010,2018,2),
+~get_acs(geography = "county", 
+        table = "B19083", 
+        state = "VA", 
+        county = "003", 
+        survey = "acs1", 
+        year = .x, 
+        cache_table = TRUE) %>%
+  mutate(year = .x)
+
+)
 
 
 
+write_csv(gini_index, path = "gini_index.csv")
 
+
+# Cost Burdened Renters ---------------------------------------------------
 
 # Cost Burdened Renters
 # B25074 or
