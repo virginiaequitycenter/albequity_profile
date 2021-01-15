@@ -203,10 +203,9 @@ race_trends_poc <-
 
 midyear = ceiling((max(race_trends_poc$year) - min(race_trends_poc$year) + 1)/2)
 
-alb_pal <- sample(alb_pal, length(alb_pal), replace = FALSE)
+poc_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
 
-
-ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = final_level)) +
+race_trends2 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = final_level)) +
   geom_area(alpha=0.6 , size=.5, colour = "white") +
 
   # 2019 label
@@ -233,9 +232,9 @@ ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = fina
               slice(midyear),
             aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 2) +
 
-  scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0), limits = c(0, 100), breaks=seq(0,100, 25)) +
+  scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0), limits = c(0, 101), breaks=seq(0,100, 25)) +
   scale_x_continuous( breaks=seq(2010,2019, 1), limits = c(2010, 2019))  +
-  scale_fill_manual(values =c(rev(alb_pal))) +
+  scale_fill_manual(values =c(rev(poc_pal))) +
   coord_cartesian(clip = 'off') +
   labs(x="Year", y="Population %", fill = "Demographic")  +
   theme_bw()+
@@ -256,10 +255,9 @@ ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = fina
     plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
 
+jpeg(filename = "../graphs/race_poc_2000_2019.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
 
-jpeg(filename = "../graphs/race_2019.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
-
-race_pie
+race_trends2
 
 dev.off()
 
