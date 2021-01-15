@@ -174,6 +174,7 @@ ggplot(race_trends_pie) +
     legend.position = "right"
   )
 
+race_pie
 
 # Or look at the over time trend excluding White?
 race_trends_poc <-
@@ -1772,6 +1773,80 @@ life_exp_graph  <-
 jpeg(filename = "../graphs/life_exp.jpg", height = 45*72, width = 35*72, units = 'px', res = 300)
 
 life_exp_graph
+
+dev.off()
+
+
+# Food Insecurity  --------------------------------------------------------------
+# devtools::install_github("liamgilbey/ggwaffle")
+library(ggwaffle)
+#  install.packages("emojifont")
+library(emojifont)
+library(ggpubr)
+
+# Alternatively: https://github.com/hrbrmstr/waffle/
+
+waffle_pal <- brewer.pal(5, "BuPu")[c(5,2)]
+
+# Values transcribed from https://map.feedingamerica.org/county/2018/overall/virginia
+food <- read_csv("food_insecurity.csv") 
+
+foodsim_all <- data.frame(pop = rep("Overall", 100), 
+                      food_insecure = rep(c("Food Insecure", "Not Food Insecure"), times = c(8, 92))) 
+
+waffle_data_total <- waffle_iron(foodsim_all, aes_d(group = food_insecure),
+                           rows = 10, sample_size = 1) %>% 
+  mutate(label = fontawesome('fa-male'))
+
+ptotal <- ggplot(waffle_data_total, aes(x, y, fill = group)) + 
+  geom_waffle() +
+  coord_equal() + 
+  scale_fill_manual(values = waffle_pal) + 
+  theme_waffle() + 
+  labs(x = "", y = "", fill = "", title = "Overall") +
+  annotate(geom="text", x=5.5, y=5.5, label="8.4%",
+           color=waffle_pal[1], size = 10)
+
+ptotal2 <- ggplot(waffle_data_total, aes(x, y, color = group)) + 
+  geom_text(aes(label=label), family='fontawesome-webfont', size=5) +
+  coord_equal() + 
+  scale_color_manual(values = waffle_pal) + 
+  theme_waffle() + 
+  labs(x = "", y = "", color = "", title = "Overall") +
+  annotate(geom="text", x=5.5, y=5.5, label="8.4%",
+           color=waffle_pal[1], size = 10)
+
+foodsim_child <- data.frame(pop = rep("Child", 100), 
+                                       food_insecure = rep(c("Food Insecure", "Not Food Insecure"), times = c(10, 90))) 
+
+waffle_data_child <- waffle_iron(foodsim_child, aes_d(group = food_insecure),
+                           rows = 10, sample_size = 1) %>% 
+  mutate(label = fontawesome('fa-child'))
+
+pchild <- ggplot(waffle_data_child, aes(x, y, fill = group)) + 
+  geom_waffle() +
+  coord_equal() + 
+  scale_fill_manual(values = waffle_pal) + 
+  theme_waffle() + 
+  labs(x = "", y = "", fill = "", title = "Child")  +
+  annotate(geom="text", x=5.5, y=5.5, label="9.6%",
+           color=waffle_pal[1], size = 10)
+
+pchild2 <- ggplot(waffle_data_child, aes(x, y, color = group)) + 
+  geom_text(aes(label=label), family='fontawesome-webfont', size=5) +
+  coord_equal() + 
+  scale_color_manual(values = waffle_pal) + 
+  theme_waffle() + 
+  labs(x = "", y = "", color = "", title = "Child") +
+  annotate(geom="text", x=5.5, y=5.5, label="9.6%",
+           color=waffle_pal[1], size = 10)
+
+psquare <- ggarrange(ptotal, pchild,  common.legend = TRUE, legend = "bottom")
+picon <- ggarrange(ptotal2, pchild2, common.legend = TRUE, legend = "bottom")
+
+jpeg(filename = "../graphs/food_insecure.jpg", height = 20*72, width = 40*72, units = 'px', res = 300)
+
+psquare
 
 dev.off()
 
