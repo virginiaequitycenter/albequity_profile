@@ -1805,16 +1805,16 @@ ptotal <- ggplot(waffle_data_total, aes(x, y, fill = group)) +
   theme_waffle() + 
   labs(x = "", y = "", fill = "", title = "Overall") +
   annotate(geom="text", x=5.5, y=5.5, label="8.4%",
-           color=waffle_pal[1], size = 10)
+           color=waffle_pal[1], size = 12, fontface = "bold")
 
 ptotal2 <- ggplot(waffle_data_total, aes(x, y, color = group)) + 
-  geom_text(aes(label=label), family='fontawesome-webfont', size=5) +
+  geom_text(aes(label=label), family='fontawesome-webfont', size=8) +
   coord_equal() + 
   scale_color_manual(values = waffle_pal) + 
   theme_waffle() + 
   labs(x = "", y = "", color = "", title = "Overall") +
   annotate(geom="text", x=5.5, y=5.5, label="8.4%",
-           color=waffle_pal[1], size = 10)
+           color=waffle_pal[1], size = 12, fontface = "bold")
 
 foodsim_child <- data.frame(pop = rep("Child", 100), 
                                        food_insecure = rep(c("Food Insecure", "Not Food Insecure"), times = c(10, 90))) 
@@ -1830,16 +1830,16 @@ pchild <- ggplot(waffle_data_child, aes(x, y, fill = group)) +
   theme_waffle() + 
   labs(x = "", y = "", fill = "", title = "Child")  +
   annotate(geom="text", x=5.5, y=5.5, label="9.6%",
-           color=waffle_pal[1], size = 10)
+           color=waffle_pal[1], size = 12, fontface = "bold")
 
 pchild2 <- ggplot(waffle_data_child, aes(x, y, color = group)) + 
-  geom_text(aes(label=label), family='fontawesome-webfont', size=5) +
+  geom_text(aes(label=label), family='fontawesome-webfont', size=8) +
   coord_equal() + 
   scale_color_manual(values = waffle_pal) + 
   theme_waffle() + 
   labs(x = "", y = "", color = "", title = "Child") +
   annotate(geom="text", x=5.5, y=5.5, label="9.6%",
-           color=waffle_pal[1], size = 10)
+           color=waffle_pal[1], size = 12, fontface = "bold")
 
 psquare <- ggarrange(ptotal, pchild,  common.legend = TRUE, legend = "bottom")
 picon <- ggarrange(ptotal2, pchild2, common.legend = TRUE, legend = "bottom")
@@ -1850,6 +1850,11 @@ psquare
 
 dev.off()
 
+jpeg(filename = "../graphs/food_insecure_icon.jpg", height = 20*72, width = 40*72, units = 'px', res = 300)
+
+picon
+
+dev.off()
 
 # AHDI Table  --------------------------------------------------------------
 library(reactable)
