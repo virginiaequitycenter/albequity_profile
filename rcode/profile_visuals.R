@@ -1002,7 +1002,7 @@ bac_deg_graph  <-
 ggplot(ed_tract_graph) +
 
   geom_segment(
-    aes(xend = perc_bac, x = 0, y = keypoints, yend = keypoints), size = 1
+    aes(xend = perc_bac, x = 0, y = reorder(keypoints ,perc_bac), yend = keypoints), size = 1
   ) +
   geom_point(
     aes(x = perc_bac,
@@ -1618,8 +1618,8 @@ ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
   theme_classic() +
   theme(
    plot.title = element_text(face = "bold", hjust = .5),
-  # legend.position = c(.85, .15),
-   legend.position = "top",
+   legend.position = c(.85, .15),
+ #  legend.position = "top",
 
    axis.line.y = element_blank(),
    strip.background = element_rect(fill = "light grey"),
