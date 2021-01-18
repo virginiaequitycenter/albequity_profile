@@ -730,6 +730,82 @@ dev.off()
 
 }
 
+## Just Overall AHDI Metric dot
+
+plot_out <-
+  tract_ahdi_graph_prep %>%
+  mutate(alpha_indicator =
+           case_when(
+             category == "Composite" ~ 1,
+             TRUE ~ 0
+           )
+  ) %>%
+ # filter(category == "Composite") %>%
+  
+  ggplot() +
+  geom_point(
+    aes(x = metric,
+        y = reorder(keypoints, metric),
+        color = category,
+        alpha = alpha_indicator,
+        size = alpha_indicator
+    ),
+  )  +
+  scale_color_manual(values = ahdi_pal) +
+  scale_alpha_continuous(range = c(0, .7)) +
+  scale_size_continuous(range = c(2,4)) +
+  scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  #  scale_color_manual(values = alb_pal) +
+  geom_vline(xintercept = adhi_alb[1, "Composite"][[1]],
+             # linetype = "dashed",
+             color = "black",
+             size = .2) +
+  annotate("text", x = adhi_alb[1, "Composite"][[1]], y = 19.5,
+           label = paste0( "Albemarle County Composite AHDI" ),
+           vjust = -.7,
+           hjust = 0.5,
+           color = "black",
+           size = 3.5 ) +
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs(color = "", x = "AHDI", y = "", title = "Tract-Level American Human Development Index") +
+  coord_cartesian(clip = "off") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l =  .1, r = 1, t = 1, b =1, "cm")
+    
+  )
+
+
+
+
+jpeg(filename = paste0("../graphs/ahdi_dots_just_composite.jpg"),
+     height = 30*72, width = 30*72,
+     units = 'px', res = 300)
+
+plot_out
+
+dev.off()
+
+
+
+
+
+
 ## Parallel Coordinates
 tract_ahdi_graph %>%
   mutate(category =
@@ -860,7 +936,8 @@ ed_dist %>%
       percent > 10 ~ paste0(round(percent), "%"),
       TRUE ~ ""
       )
-  )
+  ) %>%
+  filter(Sex == "All")
 
 
 
@@ -895,7 +972,7 @@ ggplot(ed_graph, aes(y = Race))  +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)
                    ) +
 
-  facet_grid(~Sex, scales = "free") +
+ # facet_grid(~Sex, scales = "free") +
 
   guides(
   #  color = guide_legend(label.position  = "top")
@@ -916,7 +993,7 @@ ggplot(ed_graph, aes(y = Race))  +
         plot.title = element_text(hjust = .5, face = "bold")
   )
 
-jpeg(filename = "../graphs/ed_race.jpg", height = 30*72, width = 50*72, units = 'px', res = 300)
+jpeg(filename = "../graphs/ed_race.jpg", height = 30*72, width = 45*72, units = 'px', res = 300)
 
 ed_race
 
@@ -1593,7 +1670,8 @@ alice_thresh_graph <-
     )
  )
 ) %>%
-  filter(!is.na(race))
+  filter(!is.na(race)) %>%
+  filter(!race == "Overall")
 
 alice_pal <- brewer.pal(4, "BuPu")[-1]
 
@@ -1618,8 +1696,8 @@ ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
   theme_classic() +
   theme(
    plot.title = element_text(face = "bold", hjust = .5),
-   legend.position = c(.85, .15),
- #  legend.position = "top",
+ #  legend.position = c(.85, .15),
+   legend.position = "top",
 
    axis.line.y = element_blank(),
    strip.background = element_rect(fill = "light grey"),
@@ -1636,6 +1714,77 @@ alice_thresh_gg
 
 
 jpeg(filename = "../graphs/alice_thresh.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+alice_thresh_gg
+
+dev.off()
+
+
+# ALICE Thresh Main -------------------------------------------------------
+
+alice_thresh <- read_csv("alice_thresh.csv")
+
+alice_thresh_graph <-
+  alice_thresh %>%
+  filter(!race %in% c("White , Not Hispanic Or Latino")) %>%
+  mutate(
+    race = factor(race, levels = c(
+      "Overall",
+      "White",
+      "Black Or African American",
+      "Asian",
+      "American Indian And Alaska Native",
+      "Two Or More Races",
+      "Some Other Race",
+      "Hispanic Or Latino"
+      
+    )
+    )
+  ) %>%
+  filter(!is.na(race)) %>%
+  filter(race == "Overall")
+
+alice_pal <- brewer.pal(4, "BuPu")[-1]
+
+alice_thresh_gg <-
+  ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
+  geom_area(data = alice_thresh_graph,
+            aes(x = year, y = `ALICE Threshold`),
+            color = "black", size = 0, alpha = .1,
+            fill = alice_pal[3] ) +
+  geom_line(data = alice_thresh_graph %>%
+              gather(type, value, -year, -race),
+            aes(x = year, y = value, color = type),
+            inherit.aes = FALSE, size = 1 ) +
+  
+  scale_color_manual(values = c("black", "blue")) +
+  
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
+  
+  labs(color = "", y = "", x = "", title = "Cost of Living Outpaces Median Income") +
+  
+  scale_y_continuous(limits = c(0, 100000), labels = function(x) paste0("$",formatC(x, format = "d", big.mark = ","))    )+
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    #  legend.position = c(.85, .15),
+    legend.position = "top",
+    
+    axis.line.y = element_blank(),
+    strip.background = element_rect(fill = "light grey"),
+    panel.spacing = unit(1, "lines"),
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4),
+    axis.line.x = element_blank(),
+    
+    
+  ) #+
+#  facet_wrap(~race, scales = "free_x")
+
+
+alice_thresh_gg
+
+
+jpeg(filename = "../graphs/alice_thresh_overall.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
 
 alice_thresh_gg
 
@@ -1773,6 +1922,53 @@ jpeg(filename = "../graphs/life_exp.jpg", height = 45*72, width = 35*72, units =
 life_exp_graph
 
 dev.off()
+
+### Life Expectancy Map
+
+life_exp_map_gg <-
+  ggplot(ahdi_map) +
+  geom_sf( aes(fill = life_exp), color = "black", alpha = .9) +
+  scale_fill_fermenter(limits = c(70,90), palette = "BuPu", direction = 1,   type = "seq", n.breaks = 8) +
+  
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  
+  labs(fill = "Life Expectancy") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    #   legend.box="horizontal",
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+
+jpeg(filename = "../graphs/life_exp_map.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+life_exp_map_gg
+
+dev.off()
+
+
 
 
 # Food Insecurity  --------------------------------------------------------------
