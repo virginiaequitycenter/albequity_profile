@@ -1090,6 +1090,9 @@ med_hhinc <-
 
 )
 
+          
+
+
 
 # Alice Threshold vs. Median income together. 
 
@@ -1112,6 +1115,20 @@ alice_va %>%
 
 write_csv(alice_hhinc_thresh, path = "alice_thresh.csv")
 
+# Tract Median Income
+
+
+tract_med_inc   <- get_acs(geography = "tract", 
+                            # table = "S1901", 
+                          variable = "S1901_C01_012",
+                              state = "VA", 
+                              county = "003", 
+                              survey = "acs5", 
+                              year = 2019, 
+                              cache_table = TRUE) 
+
+
+write_csv(tract_med_inc, path = "med_inc_tract.csv")
 
 # Gini Index to match Alice at county level ACS1. 
 gini_index <-
@@ -1126,7 +1143,6 @@ map_df(seq(2010,2018,2),
   mutate(year = .x)
 
 )
-
 
 
 write_csv(gini_index, path = "gini_index.csv")

@@ -825,6 +825,8 @@ ggplot() +
             aes(label = keypoints, x = "composite" , y = metric,
                 hjust = -.1))
 
+
+
 ## AHDI Tract Map
 alb_tract <- tracts(state = "VA", county = "003")
 ahdi_map <-
@@ -978,7 +980,7 @@ ggplot(ed_graph, aes(y = Race))  +
   #  color = guide_legend(label.position  = "top")
   ) +
 
-  labs(x = "Percentage", y = "", title = "Educational Distributions by Race, Ethnicity, and Sex") +
+  labs(x = "Percentage", y = "", title = "Educational Distributions by Race and Ethnicity") +
  # guides(color = guide_legend(label.position = "bottom")) +
   theme_classic() +
   theme(panel.spacing = unit(.5, "lines"),
@@ -1784,11 +1786,70 @@ alice_thresh_gg <-
 alice_thresh_gg
 
 
-jpeg(filename = "../graphs/alice_thresh_overall.jpg", height = 30*72, width = 30*72, units = 'px', res = 300)
+jpeg(filename = "../graphs/alice_thresh_overall.jpg", height = 30*72, width = 35*72, units = 'px', res = 300)
 
 alice_thresh_gg
 
 dev.off()
+
+
+# Income Map --------------------------------------------------------------
+med_hh_inc <- read_csv("med_inc_tract.csv") 
+
+med_hhinc_tract_map <-
+alb_tract %>% left_join(med_hh_inc %>% mutate(GEOID = as.character(GEOID)) %>% select(-NAME) )
+
+
+
+med_hhinc_map  <-
+  ggplot(med_hhinc_tract_map) +
+  geom_sf( aes(fill = estimate), color = "black", alpha = .9) +
+  scale_fill_fermenter(limits = c(50000,140000), palette = "BuPu", direction = 1,   type = "seq", n.breaks = 8, 
+                       label = dollar_format(prefix = "$", suffix = "", 
+                                             big.mark = ",", 
+                                             )
+) +
+  
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  
+  labs(fill = "Median Household Income") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    #   legend.box="horizontal",
+    legend.text = element_text(angle = -45, hjust = 0),
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+
+jpeg(filename = "../graphs/hhinc_map.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
+med_hhinc_map
+
+dev.off()
+
+
 
 
 
