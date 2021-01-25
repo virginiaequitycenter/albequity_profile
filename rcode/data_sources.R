@@ -3,6 +3,7 @@
 ##
 ## Author:Sam Powers
 ## Date Created: 2020-12-10
+## Updated: 2021-01-18 mpc
 ##
 ## ---------------------------
 ## Purpose of script: To compile all of the relevant data sources for the albemarle equit profile 
@@ -12,6 +13,7 @@
 ## set working directory
 
 setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("data")
 
 ## ---------------------------
 ## load up the packages we will need:
@@ -205,7 +207,21 @@ write_csv(sex_age, path  = "sex_age.csv")
 # destfile <- "health_rankings.xlsx"
 # download.file(url, destfile)
 
+# national life expectancies
+us_life_expectancy_load <- read_csv("health_analytic_data2020.csv") 
 life_expectancy_load <- read_excel("health_rankings.xlsx", sheet = 5, skip = 1) 
+
+us_life_expectancy <- us_life_expectancy_load %>% 
+  select(fips = `5-digit FIPS Code`, state = Name, contains("Life expectancy")) %>% 
+  rename_with(~tolower(str_replace_all(.x, " ", "_")))  %>%
+  select(-contains(c("_ci_", "numerator", "denominator"))) %>% 
+  rename("life_expectancy_(asian)" = "life_expectancy_(asian/pacific_islander)") %>% 
+  filter(state == "United States") %>% 
+  mutate(county = NA_character_, 
+         fips = "00000") %>% 
+  select(fips, state, county, life_expectancy = life_expectancy_raw_value, 
+         everything()) %>% 
+  mutate(across(contains("life"), as.numeric))
 
 # Get Life Expectancies 
 life_expectancies <-
@@ -214,6 +230,7 @@ life_expectancies <-
   rename_with(~tolower(str_replace_all(.x, "\\.", ""))) %>%
   rename_with(~tolower(str_replace_all(.x, " ", "_")))  %>%
   select(everything(), -contains("ci")) %>%
+  bind_rows(us_life_expectancy) %>% 
   gather(label, number, -fips, -state, -county) %>%
   separate(label, c("label", "demographic"), sep = "\\(") %>%
   mutate(demographic = str_replace_all(demographic, "\\)", ""),
@@ -232,7 +249,7 @@ life_expectancies <-
                        "Harrisonburg", "Charlottesville City", 
                        "Fairfax", "Stafford"
   ))
-
+  
 
 # Census AHDI County Data -------------------------------------------------
 # Pull ACS 1 for the few that you can and pull ACS 5 for charlottesville. 
@@ -300,8 +317,21 @@ table1_dat <-
   select(GEOID, NAME, variable, estimate) %>%
   left_join(tab1_labs) %>%
     mutate(GEOID = "51000")
-)
-
+) %>% 
+  bind_rows(
+    
+    # US Data
+    get_acs(
+      year = 2019,
+      geography = "us",
+      # state = "VA",
+      variables =  tab1_labs$variable,
+      survey = "acs1"
+    )  %>%
+      select(GEOID, NAME, variable, estimate) %>%
+      left_join(tab1_labs) %>%
+      mutate(GEOID = "00000")    
+  )
 
 
 # Education Enrollment Data 
@@ -331,6 +361,11 @@ state_enroll <- get_acs(geography = "state",
                          year = 2019, 
                     cache_table = TRUE)
 
+us_enroll <- get_acs(geography = "us", 
+                        table = "S1401", 
+                        survey = "acs1", 
+                        year = 2019, 
+                        cache_table = TRUE)
 
 # County Level School Enrollment Data
 county_schl_num <- county_enroll %>% 
@@ -377,10 +412,34 @@ state_schl <- state_schl_ratio %>%
   select(fips = GEOID, school_enroll = schlE) %>%
   mutate(fips = "51000")
 
+# US Level School Enrollment Data 
+us_schl_num <- us_enroll %>% 
+  filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_num = sum(estimate), 
+            schl_numM = moe_sum(moe = moe, estimate = estimate))
+
+us_schl_den <- us_enroll %>% 
+  filter(variable %in% c("S1401_C01_013", "S1401_C01_015", "S1401_C01_017", "S1401_C01_019", "S1401_C01_021", "S1401_C01_023")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_den = sum(estimate), 
+            schl_denM = moe_sum(moe = moe, estimate = estimate))
+
+us_schl_ratio <- left_join(us_schl_num, us_schl_den)
+
+us_schl <- us_schl_ratio %>% 
+  summarize(schlE = round((schl_num/schl_den)*100, 1),
+            schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
+            schlM = round(schlM*100,1)) %>%
+  select(fips = GEOID, school_enroll = schlE) %>%
+  mutate(fips = "00000")
+
+
 # Enrollment totals
 enrollment <-
 county_schl %>%
-  bind_rows(state_schl)
+  bind_rows(state_schl) %>% 
+  bind_rows(us_schl)
 
 # Finalize Table 1 Data
 table1_final <-
@@ -402,7 +461,8 @@ table1_dat %>%
   ) %>%
   mutate(
          ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3   ) %>%
-  select(fips, county, everything(), -state)
+  select(fips, county, everything(), -state) %>% 
+  mutate(county = if_else(fips == "00000", "United States", county))
 
 table1_final
 

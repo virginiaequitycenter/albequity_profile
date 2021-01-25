@@ -289,7 +289,7 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
     axis.text.x = element_text(angle = 45, vjust = 0.5)
   )
 
-jpeg(filename = "graphs/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+jpeg(filename = "../graphs/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
 
 p
 
@@ -1871,10 +1871,15 @@ ahdi_sub <- ahdi_table[, c("county", "ahdi", hlth_cols, ed_cols, inc_cols)]
 ahdi_sub <- ahdi_sub %>% mutate(county = recode(county, 
                                                 "Charlottesville City" = "Charlottesville"))
 
-ahdi_pal <- function(x) rgb(colorRamp(c("#e5f5e0", "#238b45"))(x), maxColorValue = 255) # colorbrewer Greens 2/7
-hlth_pal <- function(x) rgb(colorRamp(c("#fff5f0", "#fc9272"))(x), maxColorValue = 255) # colorbrewer Reds 1/4
-educ_pal <- function(x) rgb(colorRamp(c("#deebf7", "#2171b5"))(x), maxColorValue = 255) # colorbrewer Blues 2/7
-earn_pal <- function(x) rgb(colorRamp(c("#efedf5", "#6a51a3"))(x), maxColorValue = 255) # colorbrewer Blues 2/7
+bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
+ahdi_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
+# "#e5f5e0", "#238b45" - colorbrewer Greens 2/7
+hlth_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
+# "#fff5f0", "#fc9272" - colorbrewer Reds 1/4
+educ_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
+# "#deebf7", "#2171b5" - colorbrewer Blues 2/7
+earn_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
+# "#efedf5", "#6a51a3" - colorbrewer Blues 2/7
 
 reactable(ahdi_sub, 
           columns = list(
@@ -1921,7 +1926,7 @@ reactable(ahdi_sub,
                                      list(background = color)
                                    },
                                    format = colFormat(digits = 1, suffix = "%")),
-            pers_earn = colDef(name = "Median Personal Earnings (Ages 16+ FT)", align = "center",
+            pers_earn = colDef(name = "Median Personal Earnings (Ages 16+)", align = "center",
                                style = function(value) {
                                  normalized <- (value - min(ahdi_sub$pers_earn)) / (max(ahdi_sub$pers_earn) - min(ahdi_sub$pers_earn))
                                  color <- earn_pal(normalized)
