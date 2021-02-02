@@ -22,9 +22,7 @@ library(viridis)
 library(ggforce) # for 'geom_arc_bar'
 library(RColorBrewer)
 library(ggnewscale)
-library(tigris)
 library(scales)
-library(ggforce)
 library("ggspatial")
 
 select <- dplyr::select
@@ -47,7 +45,6 @@ alb_dems <- read_csv("demographic_table.csv") %>%
       )
   ) %>%
   filter(!final_level == "Total population")
-
 
 
 ### Race --------------------------------------------------------------------
@@ -322,6 +319,70 @@ jpeg(filename = "../final_graphs/demographics/sex_age.jpg", height = 40*72, widt
 sex_age_graph
 
 dev.off()
+
+# Nativity ----------------------------------------------------------------
+load("origins.Rda")
+
+# Citizenship and place of birth
+# Compute the cumulative percentages (top of each rectangle)
+citizenship <- citizenship %>%
+  mutate(fraction = pct/100,
+         ymax = cumsum(fraction), # cum %/top of rect
+         ymin = c(0,head(ymax, n=-1)), # bottom of rect
+         status = fct_recode(Citizenship, # shorter labels
+                             "US citizen, born in US" = "U.S. citizen, born in the United States",
+                             "US citizen, born in\nunincorporated territories" = "U.S. citizen, born in Puerto Rico or U.S. Island Areas",
+                             "US citizen, born abroad" = "U.S. citizen, born abroad of American parent(s)",
+                             "US citizen, naturalized" = "U.S. citizen by naturalization",
+                             "Not US citizen" = "Not a U.S. citizen"))
+
+donut_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
+
+# Plot
+p <- ggplot(citizenship, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=status)) +
+  geom_rect() +
+  coord_polar(theta="y") +
+  xlim(c(1.5, 4)) +
+  scale_fill_manual(values = donut_pal) +
+  geom_text(aes(label=paste0(round(pct,1),"%"),x=c(3.75, 3.5, 3.75, 3.75, 3.75),y=(ymin+ymax)/2), color = "white") +
+  theme_void() +
+  theme(legend.position=c(.525, .5)) +
+  theme(legend.title = element_blank()) +
+  theme(legend.text = element_text(size = 8))
+
+jpeg(filename = "../final_graphs/demographics/citizen.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+p
+
+dev.off()
+
+
+# Origin of New Residents -------------------------------------------------
+origin <- origin %>%
+  mutate(fraction = estimate/sum(estimate),
+         pct = round(fraction*100,1),
+         ymax = cumsum(fraction),
+         ymin = c(0,head(ymax, n=-1)))
+
+
+# Plot
+p <- ggplot(origin, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Continent)) +
+  geom_rect() +
+  coord_polar(theta="y") +
+  xlim(c(1.5, 4)) +
+  scale_fill_manual(values = donut_pal) +
+  geom_text(aes(label=paste0(round(pct,1),"%"),x=3.5,y=(ymin+ymax)/2), color = "white") +
+  theme_void() +
+  theme(legend.position=c(.5, .5)) +
+  theme(legend.title = element_blank()) +
+  theme(legend.text = element_text(size = 8))
+
+jpeg(filename = "../final_graphs/demographics/origin.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+p
+
+dev.off()
+
 
 
 

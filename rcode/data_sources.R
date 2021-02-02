@@ -642,6 +642,7 @@ tract_ahdi %>% View()
 summary(tract_ahdi$ahdi)
 
 write_csv(tract_ahdi, path = "tract_ahdi.csv")
+
 # Education Section -------------------------------------------------------
 
 # These do not have most races in them. Just Black & White
@@ -928,6 +929,41 @@ disag_ed_5B_tract %>%
   
 write_csv(geo_ed, path = "geographic_education.csv")
 
+
+
+# Tract Level School Enrollment ------------------------------------------
+
+tract_enroll <- get_acs(geography = "tract", 
+                         table = "S1401", 
+                         state = "VA", 
+                         county = "003", 
+                         survey = "acs5", 
+                         year = 2019, 
+                         cache_table = TRUE)
+
+
+# tract Level School Enrollment Data
+tract_schl_num <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_num = sum(estimate), 
+            schl_numM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_den <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_013", "S1401_C01_015", "S1401_C01_017", "S1401_C01_019", "S1401_C01_021", "S1401_C01_023")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_den = sum(estimate), 
+            schl_denM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_ratio <- left_join(tract_schl_num, tract_schl_den)
+
+tract_schl <- tract_schl_ratio %>% 
+  summarize(schlE = round((schl_num/schl_den)*100, 1),
+            schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
+            schlM = round(schlM*100,1)) %>%
+  select(fips = GEOID, school_enroll = schlE)
+
+write_csv(tract_schl, path  = "tract_enroll.csv")
 
 # County School Education Stats -------------------------------------------
 
