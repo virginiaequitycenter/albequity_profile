@@ -13,6 +13,7 @@
 ## set working directory
 
 setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+
 # setwd("data")
 
 ## ---------------------------
@@ -614,7 +615,7 @@ tract_schl <- tract_schl_ratio %>%
             schlM = round(schlM*100,1)) %>%
   select(GEOID, school_enroll = schlE)
 
-
+View(tract_schl)
 # Put it all together
 tract_ahdi <-
   tract_facts %>%
@@ -641,6 +642,7 @@ tract_ahdi %>% View()
 summary(tract_ahdi$ahdi)
 
 write_csv(tract_ahdi, path = "tract_ahdi.csv")
+
 # Education Section -------------------------------------------------------
 
 # These do not have most races in them. Just Black & White
@@ -928,6 +930,41 @@ disag_ed_5B_tract %>%
 write_csv(geo_ed, path = "geographic_education.csv")
 
 
+
+# Tract Level School Enrollment ------------------------------------------
+
+tract_enroll <- get_acs(geography = "tract", 
+                         table = "S1401", 
+                         state = "VA", 
+                         county = "003", 
+                         survey = "acs5", 
+                         year = 2019, 
+                         cache_table = TRUE)
+
+
+# tract Level School Enrollment Data
+tract_schl_num <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_num = sum(estimate), 
+            schl_numM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_den <- tract_enroll %>% 
+  filter(variable %in% c("S1401_C01_013", "S1401_C01_015", "S1401_C01_017", "S1401_C01_019", "S1401_C01_021", "S1401_C01_023")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(schl_den = sum(estimate), 
+            schl_denM = moe_sum(moe = moe, estimate = estimate))
+
+tract_schl_ratio <- left_join(tract_schl_num, tract_schl_den)
+
+tract_schl <- tract_schl_ratio %>% 
+  summarize(schlE = round((schl_num/schl_den)*100, 1),
+            schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
+            schlM = round(schlM*100,1)) %>%
+  select(fips = GEOID, school_enroll = schlE)
+
+write_csv(tract_schl, path  = "tract_enroll.csv")
+
 # County School Education Stats -------------------------------------------
 
 ## Albemarle Equity Table
@@ -1213,6 +1250,29 @@ write_csv(gini_index, path = "gini_index.csv")
 # Cost Burdened Renters
 # B25074 or
 # B25070
+# B19051 is total housing
+
+county_housing_total <- get_acs(geography = "county", 
+                               variable = "B19051_001", 
+                               state = "VA", 
+                               county = "003", 
+                               survey = "acs1", 
+                               year = 2019, 
+                               cache_table = TRUE) %>%
+  select(total_households = estimate) %>%
+  mutate(geoid = "total")
+
+
+tract_housing_total <- get_acs(geography = "tract", 
+                                variable = "B19051_001", 
+                                state = "VA", 
+                                county = "003", 
+                                survey = "acs5", 
+                                year = 2019, 
+                                cache_table = TRUE) %>%
+select(total_households = estimate, geoid = GEOID) 
+
+
 
 county_housing_cost <- get_acs(geography = "county", 
                                table = "B25070", 
@@ -1248,15 +1308,17 @@ county_housing_cost %>%
     "")
   ) %>%
   
-  mutate(denom = total - not_computed,
+  mutate(
+    denom = total - not_computed,
          Burdened = `30.0_to_34.9` + `35.0_to_39.9` + `40.0_to_49.9`,
          `Severely Burdened` =  `50.0_or_more`,
          `Not Burdened` = less_than_10.0 + `10.0_to_14.9` + `15.0_to_19.9` + `20.0_to_24.9` +`25.0_to_29.9`
          
   ) %>%
-  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`) %>%
-  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom)) %>%
-  mutate(geoid = "total", county_type = "County")
+  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`, total_renting = total) %>%
+  mutate(geoid = "total", county_type = "County")  %>%
+  left_join(county_housing_total) %>%
+  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom), `Renting` = total_renting/total_households) 
 
 
 # Tract level stats. 
@@ -1282,13 +1344,17 @@ tract_housing_cost %>%
          `Not Burdened` = less_than_10.0 + `10.0_to_14.9` + `15.0_to_19.9` + `20.0_to_24.9` +`25.0_to_29.9`
            
            ) %>%
-  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`) %>%
-  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom)) %>%
+  select(geoid, denom, Burdened, `Severely Burdened`, `Not Burdened`, total_renting = total) %>%
+  left_join(tract_housing_total) %>%
+  mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom), Renting = total_renting/total_households) %>%
   mutate(county_type = "Census Tracts") %>%
   bind_rows(county_housing) 
 
 write_csv(albemarle_housing_costs, path = "housing_costs.csv")
   
+View(albemarle_housing_costs)
+
+
 
 
 

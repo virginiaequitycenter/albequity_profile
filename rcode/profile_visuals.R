@@ -25,9 +25,10 @@ library(RColorBrewer)
 library(ggnewscale)
 library(tigris)
 library(scales)
+library(ggforce)
 library("ggspatial")
 
-
+select <- dplyr::select
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
@@ -938,12 +939,14 @@ ed_dist %>%
       percent > 10 ~ paste0(round(percent), "%"),
       TRUE ~ ""
       )
-  ) %>%
-  filter(Sex == "All")
+  ) #%>%
+ # filter(Sex == "All")
 
+ed_cols <- c("#e7dbbc", "#ffc000")
+ramp <- colour_ramp(c("#e7dbbc", "#ffc000"))
+ed_race_pal <- rev(ramp(seq(0, 1, length = 4)))
 
-
-ed_race_pal <- rev(brewer.pal(5, "BuPu"))[-5]
+#ed_race_pal <- rev(brewer.pal(5, "BuPu"))[-5]
 
 ed_race <-
 ggplot(ed_graph, aes(y = Race))  +
@@ -956,7 +959,7 @@ ggplot(ed_graph, aes(y = Race))  +
   geom_text(
     aes(x = height, label = display, y = Race, color = degree),  alpha = 1, hjust =   .5, size = 2.75
   ) +
-  scale_color_manual(values = c("White",  "Black", "Black", "Black"),
+  scale_color_manual(values = c("Black",  "Black", "Black", "Black"),
                      guide = "none") +
 
   geom_segment(aes(x = start_line - .3, xend = start_line, yend = Race ), color = "white",
@@ -974,7 +977,7 @@ ggplot(ed_graph, aes(y = Race))  +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)
                    ) +
 
- # facet_grid(~Sex, scales = "free") +
+  facet_grid(~Sex, scales = "free") +
 
   guides(
   #  color = guide_legend(label.position  = "top")
@@ -995,7 +998,7 @@ ggplot(ed_graph, aes(y = Race))  +
         plot.title = element_text(hjust = .5, face = "bold")
   )
 
-jpeg(filename = "../graphs/ed_race.jpg", height = 30*72, width = 45*72, units = 'px', res = 300)
+jpeg(filename = "../graphs/ed_race.jpg", height = 30*72, width = 55*72, units = 'px', res = 300)
 
 ed_race
 
@@ -1014,7 +1017,9 @@ ed_geo_tract <- alb_tract %>%
   mutate(perc_bac = perc_bac/100)
 
 
-map_pal <- brewer.pal(9, "BuPu")
+#map_pal <- brewer.pal(9, "BuPu")
+map_pal <- ramp(seq(0, 1, length = 9 ))
+
 ed_map <-
   ggplot(ed_geo_tract) +
     geom_sf( aes(fill = perc_bac), color = "black") +
@@ -1029,14 +1034,25 @@ ed_map <-
     #   labels = percent
     #
     # ) +
+#?scale_fill_fermenter()
+ # scale_fill_fermenter(palette = "BuPu", direction = 1,   type = "seq", labels = percent) +
+  #scale_fill_binned(map_pal )
+#scale_fill_continuous(values = ed_cols)+
 
-    scale_fill_fermenter(palette = "BuPu", direction = 1,   type = "seq", labels = percent) +
+scale_fill_gradientn(colors = ed_cols, 
+                     labels = scales::percent,
+                   #  limits = c(, 1),
+                     guide = guide_colorbar(labesl = scales::percent,
+                                            direction = "horizontal",
+                                            title.position = "top", nbin = 10, 
+                                            barwidth = 20)) +
+
 
     theme_void() +
-    guides(fill =
-             guide_colourbar(title.position="top", title.hjust = 0.5,
-                             barwidth = 20)
-    ) +
+    # guides(fill =
+    #          guide_colourbar(title.position="top", title.hjust = 0.5,
+    #                          barwidth = 20)
+    # ) +
       labs(fill = "Percent With Bachelor's Degree or Higher") +
     annotation_scale(location = "br", width_hint = 0.25) +
     annotation_north_arrow(location = "br",
@@ -1432,6 +1448,8 @@ p
 dev.off()
 
 
+
+
 # housing costs -----------------------------------------------------------
 
 
@@ -1440,6 +1458,7 @@ house_cost <- read_csv("housing_costs.csv")
 house_cost_burden <-
 house_cost %>%
  # select(-denom) %>%
+  select(-total_renting, - total_households, - Renting) %>%
   gather(burden, pct,-geoid, -county_type, -denom) %>%
   mutate(burden = factor(burden, levels = c(
     "Not Burdened",
@@ -1562,6 +1581,59 @@ p
 
 dev.off()
 
+# Side bar pie charts
+house_cost_totals <-
+  house_cost %>%
+  select(total_renting,  total_households, Renting, geoid, county_type) %>%
+
+  left_join(tract_names %>%
+              mutate(geoid = as.character(geoid)) %>%
+              bind_rows(
+                tibble(geoid = "total", keypoints = "Albemarle County")
+                
+              )
+  ) %>%
+  mutate( `Not Renting` = 1 - Renting)  %>%
+  filter(!grepl("UVA", keypoints)) %>%
+  mutate(county_type = factor(county_type, levels = c("County", "Census Tracts"))
+         
+  ) 
+
+
+house_bars <-
+house_cost_totals %>%
+  select(Renting, `Not Renting`, geoid, keypoints) %>%
+  gather(rent_status, pct, -geoid, -keypoints) %>%
+  group_by(
+    geoid
+  ) %>%
+  arrange(geoid, rent_status) %>%
+  mutate(start = lag(pct),
+         start = case_when(
+           is.na(start) ~ 0,
+           TRUE ~ start
+         ),
+         end = pct + start,
+         start = start * 2*pi,
+         end = end*2*pi
+  ) #%>%
+house_bars
+
+  ggplot(house_bars, aes(
+    y = as.numeric(as.factor(keypoints))
+  )
+                         ) +
+  geom_arc_bar( aes(x0 = 1, 
+                    y0 = as.numeric(as.factor(keypoints)), 
+                    start = start, 
+                    end = end, 
+                    r0 = 0, 
+                    r= .25, 
+                    fill = rent_status),
+                inherit.aes = FALSE
+                ) +
+    coord_equal()
+  
 
 # ALICE Metrics -----------------------------------------------------------
 
@@ -2201,3 +2273,8 @@ reactable(ahdi_sub,
 # look for better way to save
 # SO says saveWidget from htmlwidgets and webshot from webshot
 # but this isn't working for me...
+
+
+
+
+
