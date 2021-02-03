@@ -38,7 +38,7 @@ inc_colors <- c("#b1c5be", "#106449")
 # Pal 2
 bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
 hlth_colors <- c("#dfdcce", "#c23617")
-educ_colors <- c("#dfdcce", "#62490d")
+educ_colors <- c("#dfdcce", "#624906")
 inc_colors <- c("#dfdcce", "#106348")
 
 # Pal 3
@@ -343,5 +343,8 @@ for (component in component_vec) {
   dev.off()
   
 }
+
+
+
 
 

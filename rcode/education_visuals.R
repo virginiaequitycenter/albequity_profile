@@ -35,7 +35,7 @@ options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific not
 educ_colors <- c("#e7dbbc", "#ffc000")
 
 # Pal 2
-educ_colors <- c("#dfdcce", "#62490d")
+educ_colors <- c("#dfdcce", "#624906")
 
 # Pal 3
 educ_colors <- c("#e7dbbc", "#e68026")
