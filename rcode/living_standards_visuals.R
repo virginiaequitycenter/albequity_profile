@@ -494,5 +494,24 @@ gini_plot
 
 dev.off()
 
+gini_index_all <- read_csv("gini_index_all.csv")
 
+gini_plot_all <- 
+  filter(gini_index_all, GEOID == 51003) %>% 
+  ggplot(aes(x = year, y = estimate, color = NAME)) +
+  geom_line(size = 1, color = inc_colors[2]) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = 2010:2019) +
+  theme_classic() +
+  labs(y = "", x = "", title = "Gini Index of Income Inequality") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4)
+  )
+
+jpeg(filename = "../final_graphs/living_standards/gini_index_2019.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+
+gini_plot_all
+
+dev.off()
 

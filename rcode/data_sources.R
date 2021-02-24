@@ -14,7 +14,7 @@
 
 setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
 
-# setwd("data")
+# setwd("../data")
 
 ## ---------------------------
 ## load up the packages we will need:
@@ -1229,7 +1229,7 @@ write_csv(tract_med_inc, path = "med_inc_tract.csv")
 
 # Gini Index to match Alice at county level ACS1. 
 gini_index <-
-map_df(seq(2010,2018,2),
+map_df(seq(2010,2019,1),
 ~get_acs(geography = "county", 
         table = "B19083", 
         state = "VA", 
@@ -1238,11 +1238,34 @@ map_df(seq(2010,2018,2),
         year = .x, 
         cache_table = TRUE) %>%
   mutate(year = .x)
-
 )
 
+gini_index_state <-
+  map_df(seq(2010,2019,1),
+         ~get_acs(geography = "state", 
+                  table = "B19083", 
+                  state = "VA", 
+                  survey = "acs1", 
+                  year = .x, 
+                  cache_table = TRUE) %>%
+           mutate(year = .x)
+  )
+
+gini_index_us <-
+  map_df(seq(2010,2019,1),
+         ~get_acs(geography = "us", 
+                  table = "B19083", 
+                  survey = "acs1", 
+                  year = .x, 
+                  cache_table = TRUE) %>%
+           mutate(year = .x)
+  )
+
+gini_index_all <- bind_rows(gini_index, gini_index_state, gini_index_us)
 
 write_csv(gini_index, path = "gini_index.csv")
+
+write_csv(gini_index_all, path = "gini_index_all.csv")
 
 
 # Cost Burdened Renters ---------------------------------------------------
@@ -1353,6 +1376,9 @@ tract_housing_cost %>%
 write_csv(albemarle_housing_costs, path = "housing_costs.csv")
   
 View(albemarle_housing_costs)
+
+
+# SNAP Retail  ---------------------------------------------------
 
 
 
