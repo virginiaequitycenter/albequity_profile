@@ -9,7 +9,14 @@ library(sf)
 
 # API query: from https://usda-fns.hub.arcgis.com/datasets/USDA-FNS::snap-store-locations/geoservice
 
+
 full_path <- "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/arcgis/rest/services/Store_Locations/FeatureServer/0/query?where=State%20%3D%20'VA'%20AND%20County%20%3D%20'ALBEMARLE'%20OR%20County%20%3D%20'CHARLOTTESVILLE'&outFields=*&outSR=4326&f=json"
+
+#     xmin      ymin      xmax      ymax 
+# -78.83887  37.72264 -78.20938  38.27793 
+
+full_path_lat_lon <- "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/arcgis/rest/services/Store_Locations/FeatureServer/0/query?where=State%20%3D%20'VA'%20AND%20County%20%3D%20'ALBEMARLE'%20OR%20County%20%3D%20'CHARLOTTESVILLE'&outFields=*&outSR=4326&f=json"
+
 
 # Retrieve data
 stores_json <- fromJSON(full_path)
@@ -64,6 +71,10 @@ snap_tract <- alb_tract %>%
 
 # Map snap use by tract with retailers overlaid
 snap_tract_4326 <- sf::st_transform(snap_tract, 4326)
+st_bbox(snap_tract_4326)
+
+#     xmin      ymin      xmax      ymax 
+# -78.83887  37.72264 -78.20938  38.27793 
 
 # Pal 3
 hlth_colors <- c("#f0dbe2", "#b02c58")
