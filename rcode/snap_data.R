@@ -59,8 +59,7 @@ snap_tract <- alb_tract %>%
   )  %>%
   left_join(tract_snap_house %>%
               select(GEOID, house = estimate)
-  )
-              )  %>%
+  ) %>%
   left_join(tract_snap_house %>%
               select(GEOID, house = estimate)
             )
@@ -74,7 +73,6 @@ hlth_colors <- c("#f0dbe2", "#b02c58")
 
 hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
 
->>>>>>> origin/main
 snap_map <-
   ggplot(snap_tract_4326) +
   geom_sf(aes(fill = house), color = "black") +
