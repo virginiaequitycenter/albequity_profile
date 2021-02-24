@@ -59,6 +59,7 @@ alb_pal <- c("#707d34", "#d27d29", "#f2c431", "#39657c", "#e4dbd2", "#6787ae", "
 race_dec <- read_excel("albco_profile_raceovertime.xlsx")
 
 race_dec_long <- race_dec %>% 
+  filter(year < 2019) %>% 
   select(-c(white_per, nonwhite_per)) %>% 
   pivot_longer(-c(year, total_wcc, total_se), names_to = "poptype", values_to = "pop") %>% 
   mutate(pop_percent = round((pop/total_se)*100,1),
