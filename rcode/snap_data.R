@@ -15,8 +15,8 @@ library(sf)
 # lat/lon query
 full_path <- "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/arcgis/rest/services/Store_Locations/FeatureServer/0/query?where=Longitude%20%3E%3D%20-78.83887%20AND%20Longitude%20%3C%3D%20-78.20938%20AND%20Latitude%20%3E%3D%2037.72264%20AND%20Latitude%20%3C%3D%2038.27793&outFields=*&outSR=4326&f=json"
 
-#     xmin      ymin      xmax      ymax 
-# -78.83887  37.72264 -78.20938  38.27793 
+#     xmin      ymin      xmax      ymax
+# -78.83887  37.72264 -78.20938  38.27793
 
 # Retrieve data
 stores_json <- fromJSON(full_path)
@@ -24,32 +24,33 @@ stores_json <- fromJSON(full_path)
 # Extract data frame from list
 stores <- stores_json$features$attributes
 # 132 - Siri's estimate in revision is based on distance
-# from a point, so includes things in surrounding counties
-# but might miss parts of the county that fall outside
-# the circle...
 
 # make it an SF object
-stores_4326 <- st_as_sf(stores, 
+stores_4326 <- st_as_sf(stores,
                         coords = c("Longitude", "Latitude"),
                         crs = 4326)
 
 # Albemarle snap data by tract
-tract_snap <- get_acs(geography = "tract", 
-                        table = "S2201", 
-                        state = "VA", 
-                        county = "003", 
-                        survey = "acs5", 
-                        year = 2019, 
+tract_snap <- get_acs(geography = "tract",
+                        table = "S2201",
+                        state = "VA",
+                        county = "003",
+                        survey = "acs5",
+                        year = 2019,
                         cache_table = TRUE)
 
 # could use percents or households
 # households = "S2201_C03_001"
 # percent = "S2201_C04_001"
-tract_snap_per <- tract_snap %>% 
-  filter(variable == "S2201_C03_001") 
+tract_snap_per <- tract_snap %>%
+  filter(variable == "S2201_C04_001")
+
+tract_snap_house <- tract_snap %>%
+  filter(variable == "S2201_C03_001")
+
 
 # Albemarle tract data
-alb_tract <- tracts(state = "VA", county = "003") 
+alb_tract <- tracts(state = "VA", county = "003")
 
 snap_tract <- alb_tract %>%
   select(-NAME) %>%
@@ -59,6 +60,10 @@ snap_tract <- alb_tract %>%
   left_join(tract_snap_house %>%
               select(GEOID, house = estimate)
   )
+              )  %>%
+  left_join(tract_snap_house %>%
+              select(GEOID, house = estimate)
+            )
 
 # Map snap use by tract with retailers overlaid
 snap_tract_4326 <- sf::st_transform(snap_tract, 4326)
@@ -67,13 +72,16 @@ st_bbox(snap_tract_4326)
 # Pal 3
 hlth_colors <- c("#f0dbe2", "#b02c58")
 
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
+
+>>>>>>> origin/main
 snap_map <-
   ggplot(snap_tract_4326) +
   geom_sf(aes(fill = house), color = "black") +
   geom_sf(data = stores_4326, size = 1, shape = 21, fill = "darkblue") +
   scale_fill_steps(
-    low = educ_colors[1],
-    high = educ_colors[2],
+    low = hlth_colors[1],
+    high = hlth_colors[2],
     space = "Lab",
     na.value = "grey50",
     guide = "coloursteps",

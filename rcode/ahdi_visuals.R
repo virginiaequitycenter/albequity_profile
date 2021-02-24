@@ -38,7 +38,7 @@ inc_colors <- c("#b1c5be", "#106449")
 # Pal 2
 bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
 hlth_colors <- c("#dfdcce", "#c23617")
-educ_colors <- c("#dfdcce", "#62490d")
+educ_colors <- c("#dfdcce", "#624906")
 inc_colors <- c("#dfdcce", "#106348")
 
 # Pal 3
@@ -280,6 +280,7 @@ ahdi_dots_function <- function(input){
                TRUE ~ 0
              )
     ) %>%
+   # filter(category == 1) %>%
     
     ggplot() +
     geom_point(
@@ -291,7 +292,7 @@ ahdi_dots_function <- function(input){
       ),
     )  +
     scale_color_manual(values = composite_pal) +
-    scale_alpha_continuous(range = c(.8, .7)) +
+    scale_alpha_continuous(range = c(0, .7)) +
     scale_size_continuous(range = c(2,4)) +
     scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
     scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
@@ -334,7 +335,7 @@ component_vec <- c("Health", "Income", "Education", "Composite")
 
 for (component in component_vec) {
   
-  jpeg(filename = paste0("../final_graphs/ahdi/ahdi_dots_", component,".jpg"),
+  jpeg(filename = paste0("/Users/samuelpowers/Box Sync/Demo of Data Initiative/Albemarle Cty Equity Profile/final_graphs pal3/ahdi/ahdi_dots_just_", component,".jpg"),
        height = 30*72, width = 30*72,
        units = 'px', res = 300)
   
@@ -343,5 +344,8 @@ for (component in component_vec) {
   dev.off()
   
 }
+
+
+
 
 
