@@ -1,0 +1,663 @@
+# Test figures for online webstory
+# May 26, 2021 mpc
+
+library(tidyverse)
+library(RColorBrewer)
+library(plotly)
+library(reactable)
+library(scales)
+library("ggspatial")
+library(ggnewscale)
+
+
+# Load combined data
+load("webstory/webstory_data.RData")
+
+
+# Figure 1 (1 in report) ----
+race_dec <- race_dec %>% 
+  filter(year != 2019)
+
+race_dec_long <- race_dec %>% 
+  select(-c(white_per, nonwhite_per)) %>% 
+  pivot_longer(-c(year, total_wcc, total_se), names_to = "poptype", values_to = "pop") %>% 
+  mutate(pop_percent = round((pop/total_se)*100,1),
+         poptype = fct_recode(poptype, 
+                              "White Population" = "white_se",
+                              "Population of Color" = "nonwhite_se"))
+
+dec_pal <- brewer.pal(5, "BuPu")[c(2,5)]
+
+p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
+  geom_line(size = 1) +
+  scale_y_continuous(limits = c(0,100)) +
+  scale_x_continuous(breaks = seq(1790,2010,10)) +
+  scale_color_manual(values = dec_pal) +
+  theme_classic() +
+  labs(x="Year", y="Population %", title = "", color = "",
+       caption = "Figure 1. White Population and Populations of Color in Albemarle County") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    legend.position = "top",
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4),
+    axis.text.x = element_text(angle = 45, vjust = 0.5))
+p
+# ggplotly(p)
+
+
+# Figure 2 (2 in report) ----
+race_trends_poc <-
+  alb_dems %>%
+  filter(category == "RACE" & final_level != "White")
+
+race_trends_poc$final_level <- factor(race_trends_poc$final_level, 
+  levels = rev(c("Black or African American", "Asian", 
+                 "American Indian and Alaska Native", 
+                 "Native Hawaiian and Other Pacific Islander",
+                 "Two or more races",
+                 "Some other race"))
+)
+
+race_trends_poc <-
+  race_trends_poc %>%
+  select(-category) %>%
+  gather(year, pct, -final_level) %>%
+  mutate(year = as.numeric(year)) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  arrange(year, desc(final_level)) %>%
+  mutate(pct2 = round(100*(pct/sum(pct)),1)) %>%
+  mutate(height = cumsum(pct2) - pct2/2) %>%
+  mutate(display = ifelse(pct2 > 2, paste0(round(pct2),"%"), ""))
+
+midyear = ceiling((max(race_trends_poc$year) - min(race_trends_poc$year) + 1)/2)
+
+poc_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
+
+race_trends2 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = final_level)) +
+  geom_area(alpha=0.6 , size=.5, colour = "white") +
+  
+  # 2019 label
+  geom_text(data = race_trends_poc %>%
+              # filter(AccesStatus == "Covered without PA") %>%
+              group_by(final_level) %>%
+              arrange(desc(year)) %>%
+              slice(1),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1.2, hjust = 1, size = 2) +
+  
+  # 2011 Label
+  geom_text(data = race_trends_poc %>%
+              # filter(AccesStatus == "Covered without PA") %>%
+              group_by(final_level) %>%
+              arrange(year) %>%
+              slice(1),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 2) +
+  
+  # middle label
+  geom_text(data = race_trends_poc %>%
+              # filter(AccesStatus == "Covered without PA") %>%
+              group_by( final_level) %>%
+              arrange(year) %>%
+              slice(midyear),
+            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 2) +
+  
+  scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0), limits = c(0, 101), breaks=seq(0,100, 25)) +
+  scale_x_continuous( breaks=seq(2010,2019, 1), limits = c(2010, 2019))  +
+  scale_fill_manual(values =c(rev(poc_pal))) +
+  coord_cartesian(clip = 'off') +
+  labs(x="Year", y="Population %", fill = "Demographic",
+       caption = "Figure 2. Breakdown of Albemarle County Non-White Population, 2019")  +
+  theme_bw()+
+  theme(
+    plot.title = element_text( face="bold", hjust = 0, size = 12),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    axis.title.x = element_text(face = "bold", vjust=-4.5, size = 10),
+    axis.title.y = element_text(face = "bold", size = 10),
+    axis.text.x=element_text(vjust=-5),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line =  element_line(color  = "white"),
+    panel.spacing = unit(1.5, "lines"),
+    strip.background = element_blank(),
+    strip.text = element_text(face="bold", size = 10),
+    panel.border = element_blank(),
+    plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
+  )
+race_trends2
+# ggplotly(race_trends2)
+
+
+# Table 1 (1 in report) ----
+# Columns
+hlth_cols <- "life_exp"
+ed_cols <- c("hs_grad", "bac_deg", "grad_deg", "school_enroll")
+inc_cols <- "pers_earn"
+ahdi_sub <- ahdi_table[, c("county", "ahdi", hlth_cols, ed_cols, inc_cols)]
+
+ahdi_sub <- ahdi_sub %>% mutate(county = recode(county, 
+                                                "Charlottesville City" = "Charlottesville"))
+
+# Palette
+bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7") # bupu (1-4/4)
+hlth_colors <- c("#fff5f0", "#fc9272") # colorbrewer Reds 1,4/9
+educ_colors <- c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
+inc_colors <- c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
+
+ahdi_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
+educ_pal <- function(x) rgb(colorRamp(educ_colors)(x), maxColorValue = 255) 
+earn_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+
+ahdi_table_output <-
+  reactable(ahdi_sub, 
+            columns = list(
+              county = colDef(name = ""),
+              ahdi = colDef(name = "American HDI", align = "center",
+                            style = function(value) {
+                              normalized <- (value - min(ahdi_sub$ahdi)) / (max(ahdi_sub$ahdi) - min(ahdi_sub$ahdi))
+                              color <- ahdi_pal(normalized)
+                              list(background = color)
+                            },
+                            format = colFormat(digits = 2)),
+              life_exp = colDef(name = "Life Expectancy at Birth", align = "center",
+                                style = function(value) {
+                                  normalized <- (value - min(ahdi_sub$life_exp)) / (max(ahdi_sub$life_exp) - min(ahdi_sub$life_exp))
+                                  color <- hlth_pal(normalized)
+                                  list(background = color)
+                                },
+                                format = colFormat(digits = 1)),
+              hs_grad = colDef(name = "HS Degree or more (Adults 25+)", align = "center",
+                               style = function(value) {
+                                 normalized <- (value - min(ahdi_sub$hs_grad)) / (max(ahdi_sub$hs_grad) - min(ahdi_sub$hs_grad))
+                                 color <- educ_pal(normalized)
+                                 list(background = color)
+                               },
+                               format = colFormat(digits = 1, suffix = "%")),
+              bac_deg = colDef(name = "Bachelors Degree or more (Adults 25+)", align = "center",
+                               style = function(value) {
+                                 normalized <- (value - min(ahdi_sub$bac_deg)) / (max(ahdi_sub$bac_deg) - min(ahdi_sub$bac_deg))
+                                 color <- educ_pal(normalized)
+                                 list(background = color)
+                               },
+                               format = colFormat(digits = 1, suffix = "%")),
+              grad_deg = colDef(name = "Grad/ Professional Degree (Adults 25+)", align = "center",
+                                style = function(value) {
+                                  normalized <- (value - min(ahdi_sub$grad_deg)) / (max(ahdi_sub$grad_deg) - min(ahdi_sub$grad_deg))
+                                  color <- educ_pal(normalized)
+                                  list(background = color)
+                                },
+                                format = colFormat(digits = 1, suffix = "%")),
+              school_enroll = colDef(name = "School Enrollment (Ages 3-24)", align = "center",
+                                     style = function(value) {
+                                       normalized <- (value - min(ahdi_sub$school_enroll)) / (max(ahdi_sub$school_enroll) - min(ahdi_sub$school_enroll))
+                                       color <- educ_pal(normalized)
+                                       list(background = color)
+                                     },
+                                     format = colFormat(digits = 1, suffix = "%")),
+              pers_earn = colDef(name = "Median Personal Earnings (Ages 16+)", align = "center",
+                                 style = function(value) {
+                                   normalized <- (value - min(ahdi_sub$pers_earn)) / (max(ahdi_sub$pers_earn) - min(ahdi_sub$pers_earn))
+                                   color <- earn_pal(normalized)
+                                   list(background = color)
+                                 },
+                                 format = colFormat(digits = 0, separators = TRUE, prefix = "$"))
+            ),
+            columnGroups = list(
+              colGroup(name = "Health", columns = hlth_cols),
+              colGroup(name = "Access to Knowledge", columns = ed_cols),
+              colGroup(name = "Living Standards", columns = inc_cols)
+            )
+  )
+ahdi_table_output
+
+
+# Figure 3 (5a in report) ----
+ahdi_map <-
+  alb_tract %>%
+  left_join(tract_ahdi %>% mutate(GEOID = as.character(geoid)))
+
+ahdi_map_gg <-
+  ggplot(ahdi_map) +
+  geom_sf( aes(fill = ahdi), color = "black", alpha = .9) +
+  scale_fill_fermenter(limits = c(3,10), palette = "BuPu", direction = 1,   type = "seq", n.breaks = 8) +
+  
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  
+  labs(fill = "American Human Development Index",
+       caption = "Figure 3. Composite AHDI by Census Tracts in Albemarle County") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    #   legend.box="horizontal",
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+ahdi_map_gg
+
+
+# Figure 4 (6 in report) ----
+tract_ahdi_graph_prep <-
+  tract_ahdi %>%
+  select(geoid, ahdi_health, ahdi_ed, ahdi_income, ahdi, keypoints) %>%
+  gather(component, metric, -c(geoid, keypoints)) %>%
+  separate(component, c(NA, "category")) %>%
+  mutate(
+    category =
+      case_when(
+        is.na(category) ~ "Composite",
+        category == "ed" ~ "Education",
+        TRUE ~ str_to_sentence(category)
+      ),
+    
+    category =
+      factor(category,
+             levels = c(
+               "Health",
+               "Education",
+               "Income",
+               "Composite"
+             )
+      )
+  ) %>%
+  filter(!is.na(metric)) %>%
+  filter(!grepl("UVA", keypoints))
+
+tract_ahdi_graph <-
+  tract_ahdi_graph_prep %>%
+  mutate(alpha_indicator =
+           case_when(
+             category == "Composite" ~ 1,
+             TRUE ~ 0
+           )
+  )
+
+# color palette
+composite_pal <- c(
+  hlth_colors[2],
+  educ_colors[2],
+  inc_colors[2],
+  bupu[4]
+)
+
+# county line labeller
+ahdi_alb <- ahdi_table[ahdi_table$county == "Albemarle", c("ahdi_ed", "ahdi_income", "ahdi_health", "ahdi")]
+names(ahdi_alb) <- c("Education", "Income", "Health", "Composite")
+
+# plot
+ggplot(tract_ahdi_graph) +
+  geom_point(
+    aes(x = metric,
+        y = reorder(keypoints, metric),
+        color = category
+    ),
+  )  +
+  scale_color_manual(values = composite_pal) +
+  scale_alpha_continuous(range = c(0, .7)) +
+  scale_size_continuous(range = c(2,4)) +
+  scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  geom_vline(xintercept = ahdi_alb[1,"Composite"][[1]],
+             # linetype = "dashed",
+             color = "black",
+             size = .2) +
+  annotate("text", x = ahdi_alb[1,"Composite"][[1]], y = 19.5,
+           label = paste0( "Albemarle County ", "Composite", " AHDI" ),
+           vjust = -.7,
+           hjust = 0.5,
+           color = "black",
+           size = 3.5 ) +
+  guides(
+    alpha = FALSE,
+    size = FALSE,
+    color = guide_legend(label.position  = "top")
+  ) +
+  labs(color = "", x = "AHDI", y = "", 
+       #title = "Tract-Level American Human Development Index", 
+       caption = "Figure 4. AHDI and Components by Census Tracts in Albemarle County") +
+  coord_cartesian(clip = "off") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line()
+  )
+
+## not quite right -- colors are off, and composite needs to be bigger...
+
+
+# Figure 5 (8 in report) ----
+## this figure isn't in github code...
+
+
+# Figure 6 (9a in report) ----
+life_map <-
+  alb_tract %>%
+  left_join(life_exp %>% mutate(GEOID = as.character(geoid)))
+
+hlth_colors2 <- c("#f0dbe2", "#b02c58")
+
+life_exp_map_gg <-
+  ggplot(life_map) +
+  geom_sf( aes(fill = life_exp), color = "black", alpha = .9) +
+  scale_fill_steps(
+    low = hlth_colors2[1],
+    high = hlth_colors2[2],
+    space = "Lab",
+    na.value = "grey50",
+    guide = "coloursteps",
+    aesthetics = "fill",
+    n.breaks = 8
+  ) +
+  
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  
+  labs(fill = "Life Expectancy",
+       caption = "Figure 6. Life Expectancy at Birth by Census Tracts in Albemarle County") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    #   legend.box="horizontal",
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+
+life_exp_map_gg
+
+
+# Figure 7 (13 in report) ----
+ed_graph <-
+  ed_dist %>%
+  ungroup() %>%
+  group_by(Sex, Race) %>%
+  arrange(Sex, Race, desc(degree)) %>%
+  mutate(
+    end_pct = cumsum(percent),
+    start_pct = cumsum(percent) - percent,
+    bac_pct = case_when(
+      degree == "Some college or associate's degree" ~ end_pct,
+      TRUE ~ 0
+    ),
+    bac_pct = sum(bac_pct),
+    start_line = start_pct - bac_pct,
+    end_line = start_line + percent,
+    height = (start_line + end_line) / 2,
+    display =
+      case_when(
+        percent > 10 ~ paste0(round(percent), "%"),
+        TRUE ~ ""
+      )
+  ) #%>%
+# filter(Sex == "All")
+
+educ_colors <- c("#e7dbbc", "#e68026")
+ed_ramp <- colour_ramp(educ_colors)
+ed_race_pal <- rev(ed_ramp(seq(0, 1, length = 4)))
+
+ed_race <-
+  ggplot(ed_graph, aes(y = Race))  +
+  geom_segment(aes(x = start_line, xend = end_line, color = degree, yend = Race ),
+               size = 14, alpha= .7) +
+  scale_color_manual(values = ed_race_pal,
+                     name = element_blank(),
+                     guide = guide_legend(reverse = TRUE, nrow = 1)) +
+  new_scale_color() +
+  geom_text(
+    aes(x = height, label = display, y = Race, color = degree),  alpha = 1, hjust =   .5, size = 2.75
+  ) +
+  scale_color_manual(values = c("Black",  "Black", "Black", "Black"),
+                     guide = "none") +
+  
+  geom_segment(aes(x = start_line - .3, xend = start_line, yend = Race ), color = "white",
+               size = 14, alpha= 1)  +
+  
+  geom_vline(xintercept = 0) +
+  
+  coord_cartesian(clip = 'off') +
+  
+  scale_x_continuous(
+    labels = function(x)
+      paste0(abs(round(x)), "%")
+  ) +
+  
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)
+  ) +
+  
+  facet_grid(~Sex, scales = "free") +
+  
+  guides(
+    #  color = guide_legend(label.position  = "top")
+  ) +
+  
+  labs(x = "Percentage", y = "", 
+       # title = "Educational Distributions by Race and Ethnicity",
+       caption = "Figure 7. Degree Attainmenet by Race/Ethnicity in Albemarle County") +
+  # guides(color = guide_legend(label.position = "bottom")) +
+  theme_classic() +
+  theme(panel.spacing = unit(.5, "lines"),
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(face = "bold"),
+        strip.text.x = element_text(face = "bold"),
+        #   axis.text.x = element_blank(),
+        #  axis.ticks.x = element_blank(),
+        #  axis.text.y=element_text(face= c("plain", "plain", "plain", "plain", "plain", "plain", "bold")),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = .5, face = "bold")
+  )
+ed_race
+
+
+# Figure 8 (14b in report) ----
+ed_map <-
+  ggplot(ed_geo_tract) +
+  geom_sf( aes(fill = perc_bac), color = "black") +
+  scale_fill_steps(
+    low = educ_colors[1],
+    high = educ_colors[2],
+    space = "Lab",
+    na.value = "grey50",
+    guide = "coloursteps",
+    aesthetics = "fill",
+    n.breaks = 10,
+    labels = percent
+    
+  ) +
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  labs(fill = "Percent With Bachelor's Degree or Higher",
+       caption = "Figure 8. Bachelor’s Degrees by Census Tracts in Albemarle County") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+ed_map
+
+
+# Figure 9 (18 in report) ----
+inc_colors <- c("#b1c5be", "#106449")
+
+med_hhinc_map  <-
+  ggplot(med_hhinc_tract_map) +
+  geom_sf( aes(fill = estimate), color = "black", alpha = .9) +
+  scale_fill_steps(
+    low = inc_colors[1],
+    high = inc_colors[2],
+    space = "Lab",
+    na.value = "grey50",
+    guide = "coloursteps",
+    aesthetics = "fill",
+    n.breaks = 8,
+    labels = dollar_format(prefix = "$", suffix = "", 
+                           big.mark = ",", 
+    )
+    
+  ) +
+  
+  theme_void() +
+  guides(fill =
+           guide_colourbar(title.position="top", title.hjust = 0.5,
+                           barwidth = 20)
+  ) +
+  
+  labs(fill = "Median Household Income",
+       caption = "Figure 9. Median Household Income by Census Tracts in Albemarle County") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  annotation_north_arrow(location = "br",
+                         which_north = "true",
+                         pad_x = unit(0.0, "in"),
+                         pad_y = unit(0.5, "in"),
+                         style = north_arrow_minimal(
+                           line_width = 1,
+                           line_col = "black",
+                           fill = "black",
+                           text_col = "black",
+                           text_family = "",
+                           text_face = NULL,
+                           text_size = 0
+                         )) +
+  theme(
+    legend.position = "top",
+    legend.text = element_text(angle = -45, hjust = 0),
+    legend.title = element_text(),
+    panel.border = element_rect(color  = "black",
+                                fill = NA,
+                                size = 1),
+    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
+    
+  )
+med_hhinc_map
+
+
+# Figure 10 (19 in report) ----
+## don't see this code in github
+
+
+# Figure 11 (21 in report) ----
+alice_thresh_graph <-
+  alice_thresh %>%
+  filter(!race %in% c("White , Not Hispanic Or Latino")) %>%
+  mutate(
+    race = factor(race, levels = c(
+      "Overall",
+      "White",
+      "Black Or African American",
+      "Asian",
+      "American Indian And Alaska Native",
+      "Two Or More Races",
+      "Some Other Race",
+      "Hispanic Or Latino"
+    )
+    )
+  ) %>%
+  filter(!is.na(race)) %>% 
+  filter(race != "Overall")
+
+inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+alice_pal <- inc_pal( seq(0, 1, length = 3))
+
+alice_thresh_gg <-
+  ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +
+  geom_area(data = alice_thresh_graph,
+            aes(x = year, y = `ALICE Threshold`),
+            color = "black", size = 0, alpha = .1,
+            fill = alice_pal[3] ) +
+  geom_line(data = alice_thresh_graph %>%
+              gather(type, value, -year, -race),
+            aes(x = year, y = value, color = type),
+            inherit.aes = FALSE, size = 1 ) +
+  
+  scale_color_manual(values = c("black", "blue")) +
+  
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
+  
+  labs(color = "", y = "", x = "", 
+       #title = "Cost of Living Outpaces Median Income",
+       caption = "Figure 11. ALICE Threshold in Albemarle County by Race/Ethnicity, 2010-2018") +
+  
+  scale_y_continuous(limits = c(0, 100000), labels = function(x) paste0("$",formatC(x, format = "d", big.mark = ","))    )+
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = .5),
+    #  legend.position = c(.85, .15),
+    legend.position = "top",
+    
+    axis.line.y = element_blank(),
+    strip.background = element_rect(fill = "light grey"),
+    panel.spacing = unit(1, "lines"),
+    panel.grid.major.y = element_line(linetype = "dashed", size = .4),
+    axis.line.x = element_blank(),
+  ) +
+  facet_wrap(~race, scales = "free_x")
+
+alice_thresh_gg
+

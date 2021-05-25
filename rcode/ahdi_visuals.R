@@ -28,24 +28,11 @@ select <- dplyr::select
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-
-# Pal 1
-bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
-hlth_colors <- c("#f0dbe2", "#b02c58")
-educ_colors <- c("#e7dbbc", "#ffc000")
-inc_colors <- c("#b1c5be", "#106449")
-
-# Pal 2
-bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
-hlth_colors <- c("#dfdcce", "#c23617")
-educ_colors <- c("#dfdcce", "#624906")
-inc_colors <- c("#dfdcce", "#106348")
-
-# Pal 3
-bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7")
-hlth_colors <- c("#f0dbe2", "#b02c58")
-educ_colors <- c("#e7dbbc", "#e68026")
-inc_colors <- c("#b1c5be", "#106449")
+# Pal
+bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7") # bupu (1-4/4)
+hlth_colors <- c("#fff5f0", "#fc9272") # colorbrewer Reds 1,4/9
+educ_colors <- c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
+inc_colors <- c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
 
 
 # AHDI Table  --------------------------------------------------------------
@@ -67,13 +54,9 @@ ahdi_sub <- ahdi_sub %>% mutate(county = recode(county,
 
 
 ahdi_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
-# "#e5f5e0", "#238b45" - colorbrewer Greens 2/7
 hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
-# "#fff5f0", "#fc9272" - colorbrewer Reds 1/4
 educ_pal <- function(x) rgb(colorRamp(educ_colors)(x), maxColorValue = 255) 
-# "#deebf7", "#2171b5" - colorbrewer Blues 2/7
 earn_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
-# "#efedf5", "#6a51a3" - colorbrewer Blues 2/7
 
 ahdi_table_output <-
 reactable(ahdi_sub, 
@@ -136,6 +119,7 @@ reactable(ahdi_sub,
           )
 )
 
+ahdi_table_output
 # look for better way to save
 # SO says saveWidget from htmlwidgets and webshot from webshot
 # but this isn't working for me...
@@ -156,18 +140,14 @@ webshot(url = html_file, file = img_file, delay = 0.1, vwidth = 1245)
 
 # Tract Data --------------------------------------------------------------
 
-tract_names <- read_csv("tract_names.csv") %>%
+tract_names <- read_csv("data/tract_names.csv") %>%
   select(-contains("X"))
 
-tract_ahdi <- read_csv("tract_ahdi.csv") %>%
+tract_ahdi <- read_csv("data/tract_ahdi.csv") %>%
   rename_with(~tolower(.x))  %>%
   left_join(tract_names)
 
 alb_tract <- tracts(state = "VA", county = "003" )
-
-
-
-# Tract Map ---------------------------------------------------------------
 
 ahdi_map <-
   alb_tract %>%
