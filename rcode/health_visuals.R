@@ -302,6 +302,3 @@ picon
 
 dev.off()
 
-
-
-

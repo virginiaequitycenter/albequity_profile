@@ -52,13 +52,16 @@ alb_dems <- read_csv("demographic_table.csv") %>%
 # Historical race over time ----------------------------------------------
 race_dec <- read_excel("albco_profile_raceovertime.xlsx")
 
+race_dec <- race_dec %>% 
+  filter(year != 2019)
+
 race_dec_long <- race_dec %>% 
   select(-c(white_per, nonwhite_per)) %>% 
   pivot_longer(-c(year, total_wcc, total_se), names_to = "poptype", values_to = "pop") %>% 
   mutate(pop_percent = round((pop/total_se)*100,1),
          poptype = fct_recode(poptype, 
-                              "White" = "white_se",
-                              "Not White" = "nonwhite_se"))
+                              "White Population" = "white_se",
+                              "Population of Color" = "nonwhite_se"))
 
 dec_pal <- brewer.pal(5, "BuPu")[c(2,5)]
 
@@ -76,7 +79,7 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
     axis.text.x = element_text(angle = 45, vjust = 0.5)
   )
 
-jpeg(filename = "../final_graphs/demographics/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+jpeg(filename = "../final_graphs pal3/demographics/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
 
 p
 

@@ -52,6 +52,16 @@ tract_snap_house <- tract_snap %>%
 # Albemarle tract data
 alb_tract <- tracts(state = "VA", county = "003")
 
+# add surrounding counties?
+near_county <- counties(state = "VA")
+near_county <- near_county %>% 
+  filter(COUNTYFP %in% c("029", "065", "079", "109",
+                         "125", "137", "015", "165"))
+# add surrounding tracts?
+near_tract <- tracts(state = "VA", 
+                     county = c("029", "065", "079", "109",
+                                "125", "137", "015", "165"))
+
 snap_tract <- alb_tract %>%
   select(-NAME) %>%
   left_join(tract_snap_per %>%
@@ -76,6 +86,8 @@ hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
 snap_map <-
   ggplot(snap_tract_4326) +
   geom_sf(aes(fill = house), color = "black") +
+  #geom_sf(data = near_county, fill = "white") +
+  #geom_sf(data = near_tract, fill = "white") +
   geom_sf(data = stores_4326, size = 1, shape = 21, fill = "darkblue") +
   scale_fill_steps(
     low = hlth_colors[1],
