@@ -207,7 +207,8 @@ ahdi_table_output <-
               colGroup(name = "Health", columns = hlth_cols),
               colGroup(name = "Access to Knowledge", columns = ed_cols),
               colGroup(name = "Living Standards", columns = inc_cols)
-            )
+            ),
+            highlight = TRUE
   )
 ahdi_table_output
 
@@ -599,7 +600,53 @@ med_hhinc_map
 
 
 # Figure 10 (19 in report) ----
-## don't see this code in github
+alice_graph  <-
+  alice_alb %>%
+  mutate(level = case_when(
+    level == "poverty_household" ~ "Poverty",
+    level == "alice__household" ~ "ALICE",
+    level == "above_alice_household" ~ "Above ALICE")
+  ) %>%
+  group_by(name) %>%
+  arrange(year, desc(level)) %>%
+  mutate(height = cumsum(pct) - pct/2) %>%
+  mutate(display = ifelse(pct > 2, paste0(round(pct),"%" ), ""),
+         display2 = paste0(display, " ", "(", number, ")"))
+
+inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+alice_pal <- inc_pal(seq(0, 1, length = 3))
+
+alice_gg <- 
+  ggplot(alice_graph, aes(x = name, y = pct, fill = level, group = level)) +
+  geom_col(alpha=0.6) +
+  scale_fill_manual(values = alice_pal) +
+  geom_text(
+    aes(x = name, label = display2, y = height),  
+    alpha = 1, hjust =   .5, size = 2.75) +
+  # geom_text(
+  #   aes(x = name, label = number, y = height-5),  
+  #   alpha = 1, hjust =   .5, size = 2.75) +
+  labs(x="Magisterial District", y="Percent", fill = "Income Status", 
+       #title = "Asset Limited, Income Constrained, Employed Population in Albemarle",
+       caption = "Figure 10. ALICE Threshold in Albemarle County by Magisterial District") +
+    theme_bw() +
+  theme(
+    plot.title = element_text(face="bold", hjust = .5, size = 12),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title.x = element_text(face = "bold", vjust=-2.5, size = 10),
+    axis.title.y = element_text(face = "bold", size = 10),
+    axis.text.x=element_text(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line =  element_line(color  = "white"),
+    panel.spacing = unit(1.5, "lines"),
+    strip.background = element_blank(),
+    strip.text = element_text(face="bold", size = 10),
+    panel.border = element_blank()
+    #plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
+  )
+alice_gg
 
 
 # Figure 11 (21 in report) ----
@@ -621,9 +668,6 @@ alice_thresh_graph <-
   ) %>%
   filter(!is.na(race)) %>% 
   filter(race != "Overall")
-
-inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
-alice_pal <- inc_pal( seq(0, 1, length = 3))
 
 alice_thresh_gg <-
   ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +

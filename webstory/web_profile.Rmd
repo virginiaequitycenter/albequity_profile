@@ -61,8 +61,8 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
     legend.position = "top",
     panel.grid.major.y = element_line(linetype = "dashed", size = .4),
     axis.text.x = element_text(angle = 45, vjust = 0.5))
-p
-# ggplotly(p)
+#p
+ggplotly(p)
 ```
 
 African Americans (free and enslaved) constituted the majority of Albemarle’s population during the dominance of chattel slavery prior to the American Civil War and into the 1800s. Black men and women established separate rural communities throughout the County, such as Proffitt. However, with the introduction of railroads, a Jim Crow-era segregationist government, and continued inequity, many African-American residents in Albemarle County migrated away from the region. 
@@ -149,7 +149,7 @@ race_trends2 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_lev
     plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
 race_trends2
-# ggplotly(race_trends2)
+#ggplotly(race_trends2)
 ```
 
 ## The Human Development Index
@@ -245,7 +245,8 @@ ahdi_table_output <-
               colGroup(name = "Health", columns = hlth_cols),
               colGroup(name = "Access to Knowledge", columns = ed_cols),
               colGroup(name = "Living Standards", columns = inc_cols)
-            )
+            ),
+            highlight = TRUE
   )
 ahdi_table_output
 ```
@@ -661,8 +662,54 @@ Additional context is necessary to better understand how household incomes compa
 
 In 2018, the most recent year with available estimates, the Household Survival Budget in Albemarle County was about \$75,000, meaning those with household incomes above \$75,000 exceeded the ALICE threshold. Over two-thirds, 37 percent, of Albemarle County households were ALICE households, unable to meet needs based on local cost of living, and an additional 9 percent were living in poverty. 
 
-```{r fig19, echo = TRUE}
-# Code not in github
+```{r fig19}
+alice_graph  <-
+  alice_alb %>%
+  mutate(level = case_when(
+    level == "poverty_household" ~ "Poverty",
+    level == "alice__household" ~ "ALICE",
+    level == "above_alice_household" ~ "Above ALICE")
+  ) %>%
+  group_by(name) %>%
+  arrange(year, desc(level)) %>%
+  mutate(height = cumsum(pct) - pct/2) %>%
+  mutate(display = ifelse(pct > 2, paste0(round(pct),"%" ), ""),
+         display2 = paste0(display, " ", "(", number, ")"))
+
+inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+alice_pal <- inc_pal(seq(0, 1, length = 3))
+
+alice_gg <- 
+  ggplot(alice_graph, aes(x = name, y = pct, fill = level, group = level)) +
+  geom_col(alpha=0.6) +
+  scale_fill_manual(values = alice_pal) +
+  geom_text(
+    aes(x = name, label = display2, y = height),  
+    alpha = 1, hjust =   .5, size = 2.75) +
+  # geom_text(
+  #   aes(x = name, label = number, y = height-5),  
+  #   alpha = 1, hjust =   .5, size = 2.75) +
+  labs(x="Magisterial District", y="Percent", fill = "Income Status", 
+       #title = "Asset Limited, Income Constrained, Employed Population in Albemarle",
+       caption = "Figure 10. ALICE Threshold in Albemarle County by Magisterial District") +
+    theme_bw() +
+  theme(
+    plot.title = element_text(face="bold", hjust = .5, size = 12),
+    legend.title = element_blank(),
+    legend.position = "top",
+    axis.title.x = element_text(face = "bold", vjust=-2.5, size = 10),
+    axis.title.y = element_text(face = "bold", size = 10),
+    axis.text.x=element_text(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line =  element_line(color  = "white"),
+    panel.spacing = unit(1.5, "lines"),
+    strip.background = element_blank(),
+    strip.text = element_text(face="bold", size = 10),
+    panel.border = element_blank()
+    #plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
+  )
+alice_gg
 ```
 
 Figure X shows how households of each race or ethnicity have fared since 2010 in terms of household income relative to cost of living. The graphs show clearly that median incomes among Black, Hispanic, and Native peoples’ households have been well below the ALICE threshold for the last ten years, while more recently the threshold is overtaking the incomes of White and Asian households.
@@ -686,9 +733,6 @@ alice_thresh_graph <-
   ) %>%
   filter(!is.na(race)) %>% 
   filter(race != "Overall")
-
-inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
-alice_pal <- inc_pal( seq(0, 1, length = 3))
 
 alice_thresh_gg <-
   ggplot(alice_thresh_graph, aes(x = year, y = `ALICE Threshold`)) +

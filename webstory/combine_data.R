@@ -121,7 +121,6 @@ ed_dist <-read_csv("data/education_distrbution.csv") %>%
                      "Hispanic Or Latino"
                      #  "White Alone, Not Hispanic Or Latino"
       ))
-      
     )
   ) %>%
   filter(!is.na(Race))
@@ -148,6 +147,18 @@ med_hhinc_tract_map <-
 
 # Figure 10 (19 in report) ----
 ## don't see this code in github
+sheets <- excel_sheets("data/alice_va.xlsx")
+
+alice_alb <- read_excel("data/alice_va.xlsx", sheet = sheets[5]) %>%
+  rename_with(~ tolower(str_replace_all(.x, ":|-| ", "_") )
+  ) %>%
+  filter(str_detect(geo.id2, "51003"))
+
+alice_alb <-
+  alice_alb %>%
+  select(year, name, households, poverty_household, alice__household, above_alice_household) %>%
+  gather(level, number, -year, -name, -households) %>%
+  mutate(pct = number/households*100 )
 
 
 # Figure 11 (21 in report) ----
@@ -155,4 +166,7 @@ alice_thresh <- read_csv("data/alice_thresh.csv")
 
 
 # SAVE ----
+rm(sheets, proper)
+
 save.image("webstory/webstory_data.RData")
+# load("webstory/webstory_data.RData")
