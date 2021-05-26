@@ -50,32 +50,48 @@ alb_tract <- tracts(state = "VA", county = "003" )
 
 
 # Figure 5 (8 in report) ----
-life_race <- read_csv("data/race_exp.csv") %>%
-      select(
-        geoid = fips,
-        life_exp = number,
-        demographic
-      ) %>%
-  mutate(
-    group = case_when(demographic == "total" ~ "Overall",
-                    TRUE ~ "Race/Ethnicity"),
-    demographic = case_when(
-      demographic == "total" ~ "Albemarle County",
-      TRUE ~ str_to_sentence(demographic))
-    ) %>% 
-  filter(!is.na(life_exp)) %>%
-  mutate(plot_exp = life_exp  - 83,
-         label_pos =
-           case_when(
-             plot_exp < 0 ~ plot_exp - 2,
-             plot_exp > 0 ~ plot_exp + 2
-           ),
-         neg =      case_when(
-           plot_exp < 0 ~ "neg",
-           plot_exp > 0 ~ "pos"
+life_expectancy_load <- read_excel("data/health_rankings.xlsx", sheet = 5, skip = 1) 
+
+
+unique(life_expectancies$ci)
+
+life_expectancies <-
+  life_expectancy_load %>% 
+  select(FIPS, State, County, contains("Life Expectancy")) %>% 
+  rename_with(~tolower(str_replace_all(.x, "\\.", ""))) %>%
+  rename_with(~tolower(str_replace_all(.x, " ", "_")))  %>%
+  gather(label, number, -fips, -state, -county) %>%
+  separate(label, c("label", "demographic"), sep = "\\(") %>%
+  separate(demographic, c("demographic", "ci"), sep = "\\)") %>%
+  
+  mutate(demographic = str_replace_all(demographic, "\\)", ""),
+         demographic = case_when(
+           is.na(demographic) ~ "total",
+           TRUE ~ demographic 
+         ),
+         
+         ci = str_replace_all(ci, "_95%_ci_-_", ""),
+         ci = case_when(
+           ci %in% c("low", "high") ~ ci,
+           TRUE ~ "mean"
          )
          
-  )
+  ) %>%
+  select(-label) %>%
+  filter(county %in% c("Albemarle")) %>%
+  spread(ci, number) %>%
+  mutate(
+    demo = case_when(demographic == "total" ~ "Overall",
+                     TRUE ~ "Race/Ethnicity"
+    ),
+    
+    demographic = case_when(
+      demographic == "total" ~ "Albemarle County",
+      TRUE ~ str_to_sentence(demographic)
+    )
+    
+  ) %>%
+  filter(!is.na(mean))
 
 ## this figure isn't in github code...
 

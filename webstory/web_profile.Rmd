@@ -397,8 +397,66 @@ The primary health-related measure in the AHDI is life expectancy at birth, that
 
 The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 8). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to White residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their White neighbors.
 
-```{r fig8, echo = TRUE}
-# Code not in github
+```{r fig8, echo = FALSE}
+
+life_pal <- hlth_pal( seq(0, 1, length = 5))
+
+life_exp_graph  <-
+  ggplot(life_expectancies) +
+  
+  geom_segment(
+    aes(xend = low, x = high, y = reorder(demographic, mean), yend = demographic),
+    size = 3,
+    color = life_pal[5],
+    alpha = .7
+  ) +
+  
+  geom_segment(
+    aes(xend = mean - .05,
+        x = mean + .05,
+        yend = demographic, 
+        y = demographic,
+    ),
+    size = 4
+  )  +
+  
+  geom_text(aes(x = mean , y = demographic, label =  round(mean, 1) ),
+            hjust = .5, vjust = -1) +
+  
+  scale_x_continuous( limits = c(62, 103), breaks = seq(65, 100, 5) ) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  geom_vline(xintercept = 83) +
+  
+  labs( x = "Average Life Expectancy", y = "", title = "Albemarle County Life Expectancy") +
+  coord_cartesian(clip = "off") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm"),
+    panel.spacing = unit(1, "lines"),
+    strip.background = element_blank(),
+    strip.placement = "outside",
+    strip.text.y = element_text(face = "bold"),
+    strip.text.x = element_text(face = "bold")
+    
+  ) +
+  
+  facet_grid(demo ~ . ,  switch = "y", scales = "free",  space = "free_y")
+
+
+life_exp_graph
+
+
+
 ```
 Geographically, we can also see that not every area in the County experiences a similarly high life expectancy (Figure 9). There is a maximum disparity of 11.6 years across neighborhoods 
 between North Garden, which enjoys the longest life expectancy, and the Oak Hill/Old Lynchburg Road area, which experiences the shortest. Additionally, the map reveals lower life expectancy rates in the urban ring along the edge of the Charlottesville city limits and in some of the rural areas of Albemarle County in particular. The available data illustrates a clear pattern of disparate health outcomes by race and place (location) in Albemarle County.
