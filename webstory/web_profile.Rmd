@@ -19,6 +19,9 @@ library(reactable)
 library(scales)
 library("ggspatial")
 library(ggnewscale)
+library(htmltools)
+library(sf)
+library(leaflet)
 
 # Load combined data
 load("webstory_data.RData")
@@ -31,17 +34,24 @@ hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
 
 educ_colors <- c("#e7dbbc", "#e68026")
 ed_ramp <- colour_ramp(educ_colors)
-
 ```
-## Introduction
 
-Albemarle County’s stated mission is to enhance the well-being and quality of life for all community members through the provision of the highest level of public service consistent with the prudent use of public funds.
+```{css, echo = FALSE}
+h2, #TOC ul>li {
+  color: #3182bd;
+}
+```
 
-This Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. The Profile also contextualizes the data from this snapshot in time within the history of the County.
+
+> <span style="color:#3182bd">Albemarle County’s stated mission is to enhance the well-being and quality of life for all community members through the provision of the highest level of public service consistent with the prudent use of public funds.</span>
+
+The Albemarle County Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. This online version is a subset of the full [Equity Profile](addlink).
 
 ## Demographic History of Albemarle County
 
-Albemarle County’s population has witnessed significant demographic shifts with regard to race/ethnicity over time, as Figure 1 shows. Changing demographics indicate fluctuating conditions of equity for particular populations. Prior to European settlement, Native Americans inhabited Central Virginia for over 10,000 years and Monacan people have inhabited the area for at least 1,000 years. Population statistics tracked by the U.S. government do not capture these facts, contributing to the systemic erasure of Native peoples.
+Albemarle County’s population has witnessed significant demographic shifts with regard to race/ethnicity over time, as Figure 1 shows. Changing demographics indicate fluctuating conditions of equity for particular populations. Prior to European settlement, Native Americans inhabited Central Virginia for over 10,000 years and Monacan people have inhabited the area for at least 1,000 years.^[Hantman, Jeffrey L. *Monacan Millennium: A Collaborative Archaeology and History of a Virginia Indian People.* University of Virginia Press, 2018.] Population statistics tracked by the U.S. government do not capture these facts, contributing to the systemic erasure of Native peoples.
+
+### Figure 1. White Population and Populations of Color in Albemarle County
 
 ```{r fig1}
 race_dec <- race_dec %>% 
@@ -63,22 +73,27 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
   scale_x_continuous(breaks = seq(1790,2010,10)) +
   scale_color_manual(values = dec_pal) +
   theme_classic() +
-  labs(x="Year", y="Population %", title = "", color = "",
-       caption = "Figure 1. White Population and Populations of Color in Albemarle County") +
+  labs(x="Year", y="Population %", color = "") +
   theme(
-    plot.title = element_text(face = "bold", hjust = .5),
-    legend.position = "top",
+    #plot.title = element_text(face = "bold", hjust = .5),
+    #legend.position = "top",
     panel.grid.major.y = element_line(linetype = "dashed", size = .4),
     axis.text.x = element_text(angle = 45, vjust = 0.5))
 #p
-ggplotly(p)
+ggplotly(p) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.3, y = 1.05)
+  )
 ```
 
 African Americans (free and enslaved) constituted the majority of Albemarle’s population during the dominance of chattel slavery prior to the American Civil War and into the 1800s. Black men and women established separate rural communities throughout the County, such as Proffitt. However, with the introduction of railroads, a Jim Crow-era segregationist government, and continued inequity, many African-American residents in Albemarle County migrated away from the region. 
 
-Since that time, Albemarle’s population has been majority white. However, during the last two decades, the County has been growing more diverse. As of 2019, nearly a quarter of Albemarle’s community members are people of color (Figure 2). African-American people constitute the largest minority group, comprising nearly half of the non-white population and nine percent of the overall population. Among census-defined racial categories, Asian people make up 29 percent of the non-white population (five percent of the overall population), while multiracial residents make up another 17 percent of the populations of color (3 percent overall). Latinx and Hispanic people, not shown in Figure 2, as Hispanic ethnicity may intersect with each of the racial categories captured by the census, constitute six percent of the overall Albemarle population in 2019.
+Since that time, Albemarle’s population has been majority white. However, during the last two decades, the County has been growing more diverse. As of 2019, nearly a quarter of Albemarle’s community members are people of color. African-American people constitute the largest minority group (Figure 2), comprising nearly half of the non-white population and nine percent of the overall population. Among census-defined racial categories, Asian people make up 29 percent of the non-white population (five percent of the overall population), while multiracial residents make up another 17 percent of the populations of color (3 percent overall). Latinx and Hispanic people, not shown in Figure 2, as Hispanic ethnicity may intersect with each of the racial categories captured by the census, constitute six percent of the overall Albemarle population in 2019.
 
-```{r fig2}
+### Figure 2. Breakdown of Albemarle County's Populations of Color, 2019
+
+```{r fig2, fig.height = 6, fig.width = 8}
 race_trends_poc <-
   alb_dems %>%
   filter(category == "RACE" & final_level != "White")
@@ -103,62 +118,28 @@ race_trends_poc <-
   mutate(height = cumsum(pct2) - pct2/2) %>%
   mutate(display = ifelse(pct2 > 2, paste0(round(pct2),"%"), ""))
 
-midyear = ceiling((max(race_trends_poc$year) - min(race_trends_poc$year) + 1)/2)
-
 poc_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
 
-race_trends2 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level, group = final_level)) +
+race_trends3 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level)) +
   geom_area(alpha=0.6 , size=.5, colour = "white") +
-  
-  # 2019 label
-  geom_text(data = race_trends_poc %>%
-              # filter(AccesStatus == "Covered without PA") %>%
-              group_by(final_level) %>%
-              arrange(desc(year)) %>%
-              slice(1),
-            aes(x = year, label = display, y = height ), color = "Black", alpha = 1.2, hjust = 1, size = 2) +
-  
-  # 2011 Label
-  geom_text(data = race_trends_poc %>%
-              # filter(AccesStatus == "Covered without PA") %>%
-              group_by(final_level) %>%
-              arrange(year) %>%
-              slice(1),
-            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 2) +
-  
-  # middle label
-  geom_text(data = race_trends_poc %>%
-              # filter(AccesStatus == "Covered without PA") %>%
-              group_by( final_level) %>%
-              arrange(year) %>%
-              slice(midyear),
-            aes(x = year, label = display, y = height ), color = "Black", alpha = 1, hjust = -.2, size = 2) +
-  
+  scale_x_continuous( breaks=seq(2010,2019, 1), limits = c(2010, 2019)) +
   scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0), limits = c(0, 101), breaks=seq(0,100, 25)) +
-  scale_x_continuous( breaks=seq(2010,2019, 1), limits = c(2010, 2019))  +
   scale_fill_manual(values =c(rev(poc_pal))) +
   coord_cartesian(clip = 'off') +
-  labs(x="Year", y="Population %", fill = "Demographic",
-       caption = "Figure 2. Breakdown of Albemarle County Non-White Population, 2019")  +
-  theme_bw()+
+  theme_bw() +
+  labs(x="Year", y="Population %", fill = "Demographic") +
   theme(
-    plot.title = element_text( face="bold", hjust = 0, size = 12),
+    #plot.title = element_text( face="bold", hjust = 0, size = 12),
     legend.title = element_blank(),
-    legend.position = "bottom",
-    axis.title.x = element_text(face = "bold", vjust=-4.5, size = 10),
-    axis.title.y = element_text(face = "bold", size = 10),
-    axis.text.x=element_text(vjust=-5),
-    axis.ticks.x = element_blank(),
-    axis.ticks.y = element_blank(),
     axis.line =  element_line(color  = "white"),
-    panel.spacing = unit(1.5, "lines"),
-    strip.background = element_blank(),
-    strip.text = element_text(face="bold", size = 10),
     panel.border = element_blank(),
-    plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
-race_trends2
-#ggplotly(race_trends2)
+
+ggplotly(race_trends3) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.1, y = -.15)
+  )  
 ```
 
 ## The Human Development Index
@@ -174,6 +155,8 @@ This report employs an adapted version of the HDI, the American Human Developmen
 In terms of scoring, the AHDI scores each component of the measure – health, access to knowledge, and living standards – on a 0-10 scale and then averages those components to produce a single composite score for each geography.
 
 As Table 1 shows, Albemarle County rates quite highly compared to the Commonwealth of Virginia, the whole of the United States, and to surrounding localities that serve as comparative benchmarks. The County’s score of 7.42 on the AHDI suggests that, on average, residents of Albemarle County experience a better quality of life than residents in nearly all of the relevant benchmark geographies.
+
+### Table 1. Albemarle County AHDI Comparison Across Benchmark Geographies
 
 ```{r tab1}
 # Columns
@@ -204,49 +187,84 @@ ahdi_table_output <-
                             style = function(value) {
                               normalized <- (value - min(ahdi_sub$ahdi)) / (max(ahdi_sub$ahdi) - min(ahdi_sub$ahdi))
                               color <- ahdi_pal(normalized)
-                              list(background = color)
-                            },
+                              if (value > 7) {
+                                fcolor <- "white"
+                              } else {
+                                fcolor <- "black"
+                              }
+                              list(background = color, color = fcolor)
+                              },
                             format = colFormat(digits = 2)),
               life_exp = colDef(name = "Life Expectancy at Birth", align = "center",
                                 style = function(value) {
                                   normalized <- (value - min(ahdi_sub$life_exp)) / (max(ahdi_sub$life_exp) - min(ahdi_sub$life_exp))
                                   color <- hlth_pal(normalized)
-                                  list(background = color)
+                                  if (value > 81) {
+                                    fcolor <- "white"
+                                  } else {
+                                    fcolor <- "black"
+                                  }
+                                  list(background = color, color = fcolor)
                                 },
                                 format = colFormat(digits = 1)),
               hs_grad = colDef(name = "HS Degree or more (Adults 25+)", align = "center",
                                style = function(value) {
                                  normalized <- (value - min(ahdi_sub$hs_grad)) / (max(ahdi_sub$hs_grad) - min(ahdi_sub$hs_grad))
                                  color <- educ_pal(normalized)
-                                 list(background = color)
+                                 if (value > 90) {
+                                   fcolor <- "white"
+                                 } else {
+                                   fcolor <- "black"
+                                 }
+                                 list(background = color, color = fcolor)
                                },
                                format = colFormat(digits = 1, suffix = "%")),
               bac_deg = colDef(name = "Bachelors Degree or more (Adults 25+)", align = "center",
                                style = function(value) {
                                  normalized <- (value - min(ahdi_sub$bac_deg)) / (max(ahdi_sub$bac_deg) - min(ahdi_sub$bac_deg))
                                  color <- educ_pal(normalized)
-                                 list(background = color)
+                                 if (value > 50) {
+                                   fcolor <- "white"
+                                 } else {
+                                   fcolor <- "black"
+                                 }
+                                 list(background = color, color = fcolor)
                                },
                                format = colFormat(digits = 1, suffix = "%")),
               grad_deg = colDef(name = "Grad/ Professional Degree (Adults 25+)", align = "center",
                                 style = function(value) {
                                   normalized <- (value - min(ahdi_sub$grad_deg)) / (max(ahdi_sub$grad_deg) - min(ahdi_sub$grad_deg))
                                   color <- educ_pal(normalized)
-                                  list(background = color)
+                                  if (value > 25) {
+                                    fcolor <- "white"
+                                  } else {
+                                    fcolor <- "black"
+                                  }
+                                  list(background = color, color = fcolor)
                                 },
                                 format = colFormat(digits = 1, suffix = "%")),
               school_enroll = colDef(name = "School Enrollment (Ages 3-24)", align = "center",
                                      style = function(value) {
                                        normalized <- (value - min(ahdi_sub$school_enroll)) / (max(ahdi_sub$school_enroll) - min(ahdi_sub$school_enroll))
                                        color <- educ_pal(normalized)
-                                       list(background = color)
+                                       if (value > 85) {
+                                         fcolor <- "white"
+                                       } else {
+                                         fcolor <- "black"
+                                       }
+                                       list(background = color, color = fcolor)
                                      },
                                      format = colFormat(digits = 1, suffix = "%")),
               pers_earn = colDef(name = "Median Personal Earnings (Ages 16+)", align = "center",
                                  style = function(value) {
                                    normalized <- (value - min(ahdi_sub$pers_earn)) / (max(ahdi_sub$pers_earn) - min(ahdi_sub$pers_earn))
                                    color <- earn_pal(normalized)
-                                   list(background = color)
+                                   if (value > 45000) {
+                                     fcolor <- "white"
+                                   } else {
+                                     fcolor <- "black"
+                                   }
+                                   list(background = color, color = fcolor)
                                  },
                                  format = colFormat(digits = 0, separators = TRUE, prefix = "$"))
             ),
@@ -260,52 +278,44 @@ ahdi_table_output <-
 ahdi_table_output
 ```
 
-However, when calculating AHDI scores by census tract, a proxy for neighborhood, we find quite large disparities in overall scores across the county. For example, the tract containing Oak Hill and Southwood has an AHDI score below 5, while tracts containing North Garden and Ivy Garden score near the top of the index scale with scores above 9. The discrepancies in scores between neighborhoods suggests distinct differences in residents’ connections to resources that expand choices, opportunities, and access across the County.
+However, when calculating AHDI scores by census tract, a proxy for neighborhood, we find quite large disparities in overall scores across the county.^[A Census Tract is an area established by the Bureau of Census for analyzing populations. They generally encompass a population between 2,500 to 8,000 people and are intended to be roughly equivalent to a neighborhood. Census tracts are given numbers, but as these are often not spatially meaningful to individuals, we have given them descriptive names based on identifiable features.] For example, the tract containing Oak Hill and Southwood has an AHDI score below 5, while tracts containing North Garden and Ivy Garden score near the top of the index scale with scores above 9. The discrepancies in scores between neighborhoods suggests substantial differences in residents’ connections to the resources that expand choices, opportunities, and access across the County.
 
-```{r fig5_6, fig.height = 6, fig.width = 8}
+### Figure 3. Composite AHDI by Census Tracts in Albemarle County
+
+```{r fig5, fig.height = 6, fig.width = 8}
 ahdi_map <-
   alb_tract %>%
   left_join(tract_ahdi %>% mutate(GEOID = as.character(geoid)))
 
-ahdi_map_gg <-
-  ggplot(ahdi_map) +
-  geom_sf( aes(fill = ahdi), color = "black", alpha = .9) +
-  scale_fill_fermenter(limits = c(3,10), palette = "BuPu", direction = 1,   type = "seq", n.breaks = 8) +
-  
-  theme_void() +
-  guides(fill =
-           guide_colourbar(title.position="top", title.hjust = 0.5,
-                           barwidth = 20)
-  ) +
-  
-  labs(fill = "American Human Development Index",
-       caption = "Figure 3. Composite AHDI by Census Tracts in Albemarle County") +
-  annotation_scale(location = "br", width_hint = 0.25) +
-  annotation_north_arrow(location = "br",
-                         which_north = "true",
-                         pad_x = unit(0.0, "in"),
-                         pad_y = unit(0.5, "in"),
-                         style = north_arrow_minimal(
-                           line_width = 1,
-                           line_col = "black",
-                           fill = "black",
-                           text_col = "black",
-                           text_family = "",
-                           text_face = NULL,
-                           text_size = 0
-                         )) +
-  theme(
-    legend.position = "top",
-    #   legend.box="horizontal",
-    legend.title = element_text(),
-    panel.border = element_rect(color  = "black",
-                                fill = NA,
-                                size = 1),
-    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
-    
-  )
-ahdi_map_gg
+bins <- c(3,4,5,6,7,8,9,10)
+pal <- colorBin("BuPu", domain = ahdi_map$ahdi, bins = bins)
 
+ahdi_map_transform <- st_transform(ahdi_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = ahdi_map_transform, 
+    fillColor = ~pal(ahdi),
+    weight = 1,
+    opacity = 1,
+    color = "white", 
+    fillOpacity = 0.5,
+    highlight = highlightOptions(
+      weight = 2,
+      fillOpacity = 0.7,
+      bringToFront = T
+    ),
+    popup = paste0("Tract Number: ", ahdi_map_transform$NAME, "<br>",
+                   "Place: ", ahdi_map_transform$keypoints, "<br>",
+                   "AHDI Value: ", round(ahdi_map_transform$ahdi, 1)))  %>% 
+  addLegend("bottomright", pal = pal, values = ahdi_map_transform$ahdi, 
+            title = "AHDI Value", opacity = 0.7)
+
+```
+
+### Figure 4. AHDI and Components by Census Tracts in Albemarle County
+
+```{r fig6, fig.height=8}
 tract_ahdi_graph_prep <-
   tract_ahdi %>%
   select(geoid, ahdi_health, ahdi_ed, ahdi_income, ahdi, keypoints) %>%
@@ -354,7 +364,7 @@ ahdi_alb <- ahdi_table[ahdi_table$county == "Albemarle", c("ahdi_ed", "ahdi_inco
 names(ahdi_alb) <- c("Education", "Income", "Health", "Composite")
 
 # plot
-ggplot(tract_ahdi_graph) +
+ahdi_component <- ggplot(tract_ahdi_graph, aes(label = keypoints)) +
   geom_point(
     aes(x = metric,
         y = reorder(keypoints, metric),
@@ -373,7 +383,7 @@ ggplot(tract_ahdi_graph) +
              # linetype = "dashed",
              color = "black",
              size = .2) +
-  annotate("text", x = ahdi_alb[1,"Composite"][[1]], y = 19.5,
+  annotate("text", x = ahdi_alb[1,"Composite"][[1]], y = 0.5,
            label = paste0( "Albemarle County ", "Composite", " AHDI" ),
            vjust = -.7,
            hjust = 0.5,
@@ -384,31 +394,32 @@ ggplot(tract_ahdi_graph) +
     size = FALSE,
     color = guide_legend(label.position  = "top")
   ) +
-  labs(color = "", x = "AHDI", y = "", 
-       #title = "Tract-Level American Human Development Index", 
-       caption = "Figure 4. AHDI and Components by Census Tracts in Albemarle County") +
+  labs(color = "", x = "AHDI", y = "") +
   coord_cartesian(clip = "off") +
   theme_classic() +
   theme(
-    plot.title = element_text(face = "bold", hjust = .5),
-    legend.position = "top",
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     panel.grid.major.y = element_line(linetype = "dashed"),
     axis.line.x = element_line(),
     axis.ticks.x = element_line()
   )
-
-## not quite right -- colors are off, and composite needs to be bigger...
+ggplotly(ahdi_component, tooltip = c("metric", "category", "keypoints")) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0, y = 1.05)
+  ) 
 ```
 
 ## Health: Life Expectancy
 
 The primary health-related measure in the AHDI is life expectancy at birth, that is, the average number of years a baby born today is expected to live given current mortality patterns.
 
-The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 8). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to White residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their White neighbors.
+The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 5). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to White residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their White neighbors.
 
-```{r fig8, echo = FALSE}
+### Figure 5. Life Expectancy at Birth by Race in Albemarle County
+
+```{r fig8}
 hlth_colors <- c("#f0dbe2", "#b02c58")
 
 hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
@@ -443,7 +454,7 @@ life_exp_graph  <-
   
   geom_vline(xintercept = 83) +
   
-  labs( x = "Average Life Expectancy", y = "", title = "Albemarle County Life Expectancy") +
+  labs( x = "Average Life Expectancy", y = "") +
   coord_cartesian(clip = "off") +
   theme_classic() +
   theme(
@@ -469,74 +480,55 @@ life_exp_graph  <-
 
 
 life_exp_graph
-
 ```
-Geographically, we can also see that not every area in the County experiences a similarly high life expectancy (Figure 9). There is a maximum disparity of 11.6 years across neighborhoods 
-between North Garden, which enjoys the longest life expectancy, and the Oak Hill/Old Lynchburg Road area, which experiences the shortest. Additionally, the map reveals lower life expectancy rates in the urban ring along the edge of the Charlottesville city limits and in some of the rural areas of Albemarle County in particular. The available data illustrates a clear pattern of disparate health outcomes by race and place (location) in Albemarle County.
 
-```{r fig9}
+Geographically, we can also see that not every area in the County experiences a similarly high life expectancy (Figure 6). There is a maximum disparity of 11.6 years across neighborhoods 
+between North Garden, which enjoys the longest life expectancy, and the Oak Hill/Old Lynchburg Road area, which experiences the shortest. Additionally, the map reveals lower life expectancy rates in the urban ring along the edge of the Charlottesville city limits and in some of the rural areas of Albemarle County in particular. The available data illustrates a clear pattern of disparate health outcomes by race and place (tract) in Albemarle County.
+
+### Figure 6. Life Expectancy at Birth by Census Tracts in Albemarle County
+
+```{r fig9, fig.height = 6, fig.width = 8}
 life_map <-
   alb_tract %>%
   left_join(life_exp %>% mutate(GEOID = as.character(geoid)))
 
 hlth_colors2 <- c("#f0dbe2", "#b02c58")
 
-life_exp_map_gg <-
-  ggplot(life_map) +
-  geom_sf( aes(fill = life_exp), color = "black", alpha = .9) +
-  scale_fill_steps(
-    low = hlth_colors2[1],
-    high = hlth_colors2[2],
-    space = "Lab",
-    na.value = "grey50",
-    guide = "coloursteps",
-    aesthetics = "fill",
-    n.breaks = 8
-  ) +
-  
-  theme_void() +
-  guides(fill =
-           guide_colourbar(title.position="top", title.hjust = 0.5,
-                           barwidth = 20)
-  ) +
-  
-  labs(fill = "Life Expectancy",
-       caption = "Figure 6. Life Expectancy at Birth by Census Tracts in Albemarle County") +
-  annotation_scale(location = "br", width_hint = 0.25) +
-  annotation_north_arrow(location = "br",
-                         which_north = "true",
-                         pad_x = unit(0.0, "in"),
-                         pad_y = unit(0.5, "in"),
-                         style = north_arrow_minimal(
-                           line_width = 1,
-                           line_col = "black",
-                           fill = "black",
-                           text_col = "black",
-                           text_family = "",
-                           text_face = NULL,
-                           text_size = 0
-                         )) +
-  theme(
-    legend.position = "top",
-    #   legend.box="horizontal",
-    legend.title = element_text(),
-    panel.border = element_rect(color  = "black",
-                                fill = NA,
-                                size = 1),
-    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
-    
-  )
+# interactive/leaflet version
+bins <- c(74,76,78,80,82,84,86,88)
+pal <- colorBin(hlth_colors2, domain = life_map$life_exp, bins = bins)
 
-life_exp_map_gg
+life_map_transform <- st_transform(life_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = life_map_transform, 
+              fillColor = ~pal(life_exp),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.6,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.8,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", life_map_transform$NAME, "<br>",
+                             "Place: ", life_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(life_map_transform$life_exp, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = life_map_transform$life_exp, 
+            title = "Life Expectancy", opacity = 0.7)
 ```
 
 ## Access to Knowledge: Degree Attainment
 
 Degree attainment for those community members over 25 years of age is a key part of the measure of the Access to Knowledge dimension in the AHDI. Residents of Albemarle County have relatively high levels of formal education. About 3 in 5 adults have a bachelor’s degree, while fewer than 1 in 20 residents do not have a high school diploma.
 
-Access to education is not distributed equally, however. Figure X reveals significant variation in educational attainment by race and ethnicity across the County. The figure is centered around bachelor degree attainment, to make comparisons of this key educational level readily visible. Only 19 percent of Black residents age 25 or more, about 1 in 5, and 32 percent of Hispanic or Latinx residents age 25 or more, about 1 in 3, have bachelor’s degrees, compared to 58 percent of White residents. At the same time, 16 percent of Black residents and nearly a quarter of Hispanic residents do not have a high school diploma, compared to fewer than 7 percent of White residents. These figures suggest current systems of public and higher education are disproportionately failing students of color, and these educational failures have institutional roots in the racialized legacies of American schools.
+Access to education is not distributed equally, however. Figure 7 reveals significant variation in educational attainment by race and ethnicity across the County. The figure is centered around bachelor degree attainment, to make comparisons of this key educational level readily visible. Only 19 percent of Black residents age 25 or more, about 1 in 5, and 32 percent of Hispanic or Latinx residents age 25 or more, about 1 in 3, have bachelor’s degrees, compared to 58 percent of White residents. At the same time, 16 percent of Black residents and nearly a quarter of Hispanic residents do not have a high school diploma, compared to fewer than 7 percent of White residents. These figures suggest current systems of public and higher education are disproportionately failing students of color, and these educational failures have institutional roots in the racialized legacies of American schools.
 
-```{r fig13}
+### Figure 7. Degree Attainmenet by Race/Ethnicity in Albemarle County 
+
+```{r fig13, fig.height = 6, fig.width = 8}
 ed_graph <-
   ed_dist %>%
   ungroup() %>%
@@ -600,9 +592,7 @@ ed_race <-
     #  color = guide_legend(label.position  = "top")
   ) +
   
-  labs(x = "Percentage", y = "", 
-       # title = "Educational Distributions by Race and Ethnicity",
-       caption = "Figure 7. Degree Attainmenet by Race/Ethnicity in Albemarle County") +
+  labs(x = "Percentage", y = "") +
   # guides(color = guide_legend(label.position = "bottom")) +
   theme_classic() +
   theme(panel.spacing = unit(.5, "lines"),
@@ -620,120 +610,78 @@ ed_race
 ```
 
 
-Geographically, we also see disparities in rates of attainment of bachelor’s degrees (Figure 14). Rates of bachelor degree attainment range from a high of 79 percent in Ivy to a low of 28 percent in Southern Albemarle, a more than 50 percentage point difference. The COVID-19 pandemic and the need to school from home further amplifies the impact of this disparate geographic distribution of educational attainment. As access to common school resources is reduced, children’s differential access to home and neighborhood-based networks of support has greater influence. Despite the generally strong levels of educational attainment among Albemarle County residents, steps can be taken to promote educational attainment for all adults, especially given the multiple high-quality higher educational institutions in the area.
+Geographically, we also see disparities in rates of attainment of bachelor’s degrees (Figure 8). Rates of bachelor degree attainment range from a high of 79 percent in Ivy to a low of 28 percent in Southern Albemarle, a more than 50 percentage point difference. The COVID-19 pandemic and the need to school from home further amplifies the impact of this disparate geographic distribution of educational attainment. As access to common school resources is reduced, children’s differential access to home and neighborhood-based networks of support has greater influence. Despite the generally strong levels of educational attainment among Albemarle County residents, steps can be taken to promote educational attainment for all adults, especially given the multiple high-quality higher educational institutions in the area.
 
-```{r fig14}
-ed_map <-
-  ggplot(ed_geo_tract) +
-  geom_sf( aes(fill = perc_bac), color = "black") +
-  scale_fill_steps(
-    low = educ_colors[1],
-    high = educ_colors[2],
-    space = "Lab",
-    na.value = "grey50",
-    guide = "coloursteps",
-    aesthetics = "fill",
-    n.breaks = 10,
-    labels = percent
-    
-  ) +
-  theme_void() +
-  guides(fill =
-           guide_colourbar(title.position="top", title.hjust = 0.5,
-                           barwidth = 20)
-  ) +
-  labs(fill = "Percent With Bachelor's Degree or Higher",
-       caption = "Figure 8. Bachelor’s Degrees by Census Tracts in Albemarle County") +
-  annotation_scale(location = "br", width_hint = 0.25) +
-  annotation_north_arrow(location = "br",
-                         which_north = "true",
-                         pad_x = unit(0.0, "in"),
-                         pad_y = unit(0.5, "in"),
-                         style = north_arrow_minimal(
-                           line_width = 1,
-                           line_col = "black",
-                           fill = "black",
-                           text_col = "black",
-                           text_family = "",
-                           text_face = NULL,
-                           text_size = 0
-                         )) +
-  theme(
-    legend.position = "top",
-    legend.title = element_text(),
-    panel.border = element_rect(color  = "black",
-                                fill = NA,
-                                size = 1),
-    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
-    
-  )
-ed_map
+### Figure 8. Bachelor’s Degrees by Census Tracts in Albemarle County
+
+```{r fig14, fig.height = 6, fig.width = 8}
+ed_geo_tract <- ed_geo_tract %>% 
+  mutate(perc_bac2 = perc_bac*100)
+
+bins <- c(20,30,40,50,60,70,80,90,100)
+pal <- colorBin(educ_colors, domain = ed_geo_tract$perc_bac2, bins = bins)
+
+ed_map_transform <- st_transform(ed_geo_tract, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = ed_map_transform, 
+              fillColor = ~pal(perc_bac2),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.7,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.9,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", ed_map_transform$NAME, "<br>",
+                             "Place: ", ed_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(ed_map_transform$perc_bac2, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = ed_map_transform$perc_bac2, 
+            title = "% with Bachelor's", opacity = 0.8)
 ```
 
 ## Living Standards: Household Income and Cost of Living
 
 Personal earnings and household income are closely tied to well-being and quality of life. Median personal earnings in Albemarle County stand at \$44,030, a level higher than the Commonwealth of Virginia or the whole of the US, and a relatively high level compared with benchmark localities nearby. For this reason, the County scores relatively highly on the AHDI. The median household income in Albemarle County in 2019 is similarly high, at \$86,399. However, there are concentrations of higher and lower income households distributed across areas in the County. Median household income by census tract ranges from a low of \$41,000, less than half of that for the County overall, to a high of \$135,100.
 
-```{r fig18}
-inc_colors <- c("#b1c5be", "#106449")
+### Figure 9. Median Household Income by Census Tracts in Albemarle County
 
-med_hhinc_map  <-
-  ggplot(med_hhinc_tract_map) +
-  geom_sf( aes(fill = estimate), color = "black", alpha = .9) +
-  scale_fill_steps(
-    low = inc_colors[1],
-    high = inc_colors[2],
-    space = "Lab",
-    na.value = "grey50",
-    guide = "coloursteps",
-    aesthetics = "fill",
-    n.breaks = 8,
-    labels = dollar_format(prefix = "$", suffix = "", 
-                           big.mark = ",", 
-    )
-    
-  ) +
-  
-  theme_void() +
-  guides(fill =
-           guide_colourbar(title.position="top", title.hjust = 0.5,
-                           barwidth = 20)
-  ) +
-  
-  labs(fill = "Median Household Income",
-       caption = "Figure 9. Median Household Income by Census Tracts in Albemarle County") +
-  annotation_scale(location = "br", width_hint = 0.25) +
-  annotation_north_arrow(location = "br",
-                         which_north = "true",
-                         pad_x = unit(0.0, "in"),
-                         pad_y = unit(0.5, "in"),
-                         style = north_arrow_minimal(
-                           line_width = 1,
-                           line_col = "black",
-                           fill = "black",
-                           text_col = "black",
-                           text_family = "",
-                           text_face = NULL,
-                           text_size = 0
-                         )) +
-  theme(
-    legend.position = "top",
-    legend.text = element_text(angle = -45, hjust = 0),
-    legend.title = element_text(),
-    panel.border = element_rect(color  = "black",
-                                fill = NA,
-                                size = 1),
-    plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
-    
-  )
-med_hhinc_map
+```{r fig18, fig.height = 6, fig.width = 8}
+bins <- c(40000,50000,60000,70000,80000,90000,100000,110000,120000,130000,140000)
+pal <- colorBin(inc_colors, domain = med_hhinc_tract_map$estimate, bins = bins)
+
+inc_map_transform <- st_transform(med_hhinc_tract_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = inc_map_transform, 
+              fillColor = ~pal(estimate),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.7,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.9,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", inc_map_transform$NAME, "<br>",
+                             "Place: ", inc_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(inc_map_transform$estimate, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = inc_map_transform$estimate, 
+            title = "Median HH Income", opacity = 0.8)
 ```
 
-Additional context is necessary to better understand how household incomes compare with the cost of living within Albemarle County. A useful measure for whether household incomes are sufficient to meet the costs of living is the United Way’s Asset Limited, Income Constrained, Employed (ALICE) threshold. The ALICE threshold is calibrated to the cost of living in each county. The Household Survival Budget that defines the threshold is a conservative dollar estimation of the minimum 12-month costs for a household to live in a particular area. It considers the costs of housing, healthcare, food, transportation, technology, taxes, childcare (if applicable), and a contingency fund equal to 10 percent of the overall budget.
+Additional context is necessary to better understand how household incomes compare with the cost of living within Albemarle County. A useful measure for whether household incomes are sufficient to meet the costs of living is the United Way’s Asset Limited, Income Constrained, Employed (ALICE) threshold. The ALICE threshold is calibrated to the cost of living in each county. The Household Survival Budget that defines the threshold is a conservative dollar estimation of the minimum 12-month costs for a household to live in a particular area. It considers the costs of housing, healthcare, food, transportation, technology, taxes, childcare (if applicable), and a contingency fund equal to 10 percent of the overall budget.^[Local costs are derived from the HUD’s Fair Market Rent, Agency for Healthcare Research and Quality reports, USDA Food Plans, Feeding America’s Cost-of-Food Index, Bureau of Labor Statistics reports, AAA reports, Federal Highway Administration reports, the American Community Survey (ACS), Consumer Reports, Tax Foundation reports, the IRS, and state reports on childcare costs. United for ALICE, 2020. Alice Research Methodology Overview. Live United. https://www.unitedforalice.org/Attachments/Methodology/2020ALICE_Methodology_FINAL.pdf.]
 
 In 2018, the most recent year with available estimates, the Household Survival Budget in Albemarle County was about \$75,000, meaning those with household incomes above \$75,000 exceeded the ALICE threshold. Over two-thirds, 37 percent, of Albemarle County households were ALICE households, unable to meet needs based on local cost of living, and an additional 9 percent were living in poverty. 
 
-```{r fig19}
+### Figure 10. ALICE Threshold in Albemarle County by Magisterial District
+
+```{r fig19, fig.height = 6, fig.width = 8}
 alice_graph  <-
   alice_alb %>%
   mutate(level = case_when(
@@ -751,41 +699,30 @@ inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255)
 alice_pal <- inc_pal(seq(0, 1, length = 3))
 
 alice_gg <- 
-  ggplot(alice_graph, aes(x = name, y = pct, fill = level, group = level)) +
+  ggplot(alice_graph, aes(x = name, y = pct, fill = level, label = number)) +
   geom_col(alpha=0.6) +
   scale_fill_manual(values = alice_pal) +
   geom_text(
-    aes(x = name, label = display2, y = height),  
+    aes(x = name, label = display, y = height),
     alpha = 1, hjust =   .5, size = 2.75) +
-  # geom_text(
-  #   aes(x = name, label = number, y = height-5),  
-  #   alpha = 1, hjust =   .5, size = 2.75) +
-  labs(x="Magisterial District", y="Percent", fill = "Income Status", 
-       #title = "Asset Limited, Income Constrained, Employed Population in Albemarle",
-       caption = "Figure 10. ALICE Threshold in Albemarle County by Magisterial District") +
+  labs(x="Magisterial District", y="Percent", fill = "Income Status") +
     theme_bw() +
   theme(
-    plot.title = element_text(face="bold", hjust = .5, size = 12),
     legend.title = element_blank(),
-    legend.position = "top",
-    axis.title.x = element_text(face = "bold", vjust=-2.5, size = 10),
-    axis.title.y = element_text(face = "bold", size = 10),
-    axis.text.x=element_text(),
-    axis.ticks.x = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.line =  element_line(color  = "white"),
-    panel.spacing = unit(1.5, "lines"),
-    strip.background = element_blank(),
-    strip.text = element_text(face="bold", size = 10),
     panel.border = element_blank()
-    #plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
-alice_gg
+ggplotly(alice_gg) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.3, y = 1.1)
+  )
 ```
 
-Figure X shows how households of each race or ethnicity have fared since 2010 in terms of household income relative to cost of living. The graphs show clearly that median incomes among Black, Hispanic, and Native peoples’ households have been well below the ALICE threshold for the last ten years, while more recently the threshold is overtaking the incomes of White and Asian households.
+Figure 11 shows how households of each race or ethnicity have fared since 2010 in terms of household income relative to cost of living. The graphs show clearly that median incomes among Black, Hispanic, and Native peoples’ households have been well below the ALICE threshold for the last ten years, while more recently the threshold is overtaking the incomes of White and Asian households.
 
-```{r fig21}
+### Figure 11. ALICE Threshold in Albemarle County by Race/Ethnicity, 2010-2018
+
+```{r fig21, fig.height = 6, fig.width = 8}
 alice_thresh_graph <-
   alice_thresh %>%
   filter(!race %in% c("White , Not Hispanic Or Latino")) %>%
@@ -820,9 +757,7 @@ alice_thresh_gg <-
   
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
   
-  labs(color = "", y = "", x = "", 
-       #title = "Cost of Living Outpaces Median Income",
-       caption = "Figure 11. ALICE Threshold in Albemarle County by Race/Ethnicity, 2010-2018") +
+  labs(color = "", y = "", x = "") +
   
   scale_y_continuous(limits = c(0, 100000), labels = function(x) paste0("$",formatC(x, format = "d", big.mark = ","))    )+
   theme_classic() +
@@ -839,7 +774,11 @@ alice_thresh_gg <-
   ) +
   facet_wrap(~race, scales = "free_x")
 
-alice_thresh_gg
+ggplotly(alice_thresh_gg) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.45, y = .2)
+  )
 ```
 
 ## Looking Forward
@@ -849,3 +788,6 @@ This profile provides an opportunity for County staff and other community member
 Efforts underway include the development and application of a framework for equity impact assessment and a supporting analytical tool (Equity Atlas), as well as staff training in the use of both. The equity impact assessment is a guiding framework intended to aid staff in examining proposed actions or decisions. The Equity Atlas, cocreated in collaboration with the UVA Equity Center, uses digital mapping to visualize indicators related to well-being and existing conditions in Albemarle County. The tool has been developed with accountability, ethical data collection, and equitable decision-making in mind. It is intended to be used as a supportive resource to the equity impact assessment, aiding staff in developing a data-informed understanding of the distribution of outcomes in Albemarle County.
 
 These efforts, while new, reflect a renewed commitment on the part of the County’s local government to deepen and expand its work to ensure the equitable distribution of local government resources and ultimately of well-being in our community. This Profile represents a first iteration of what we expect to become a regular process of assessing community conditions and subsequently measuring our impact in creating positive outcomes for all.
+
+
+

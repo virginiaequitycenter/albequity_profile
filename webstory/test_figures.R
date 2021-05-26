@@ -8,7 +8,9 @@ library(reactable)
 library(scales)
 library("ggspatial")
 library(ggnewscale)
-
+library(htmltools)
+library(sf)
+library(leaflet)
 
 # Load combined data
 load("webstory/webstory_data.RData")
@@ -34,15 +36,19 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
   scale_x_continuous(breaks = seq(1790,2010,10)) +
   scale_color_manual(values = dec_pal) +
   theme_classic() +
-  labs(x="Year", y="Population %", title = "", color = "",
-       caption = "Figure 1. White Population and Populations of Color in Albemarle County") +
+  labs(x="Year", y="Population %", color = "",
+       title = "Figure 1. White Population and Populations of Color in Albemarle County") +
   theme(
     plot.title = element_text(face = "bold", hjust = .5),
     legend.position = "top",
     panel.grid.major.y = element_line(linetype = "dashed", size = .4),
     axis.text.x = element_text(angle = 45, vjust = 0.5))
 p
-# ggplotly(p)
+ggplotly(p) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.3, y = 1.1)
+  )
 
 
 # Figure 2 (2 in report) ----
@@ -125,7 +131,33 @@ race_trends2 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_lev
     plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
 race_trends2
-# ggplotly(race_trends2)
+
+# interactive version?
+poc_pal <- sample(brewer.pal(7, "BuPu")[-1], 6, replace = FALSE)
+
+race_trends3 <- ggplot(race_trends_poc, aes(x = year, y = pct2, fill = final_level)) +
+  geom_area(alpha=0.6 , size=.5, colour = "white") +
+  scale_x_continuous( breaks=seq(2010,2019, 1), limits = c(2010, 2019)) +
+  scale_y_continuous(labels = function(x) paste0(round(x), "%"), expand = c(0, 0), limits = c(0, 101), breaks=seq(0,100, 25)) +
+  scale_fill_manual(values =c(rev(poc_pal))) +
+  coord_cartesian(clip = 'off') +
+  theme_bw() +
+  labs(x="Year", y="Population %", fill = "Demographic",
+       title = "Figure 2. Breakdown of Albemarle County Non-White Population, 2019") +
+  theme(
+    #plot.title = element_text( face="bold", hjust = 0, size = 12),
+    legend.title = element_blank(),
+    axis.line =  element_line(color  = "white"),
+    panel.border = element_blank(),
+  )
+
+race_trends3
+ggplotly(race_trends3) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.0, y = -.25)
+  )  
+
 
 
 # Table 1 (1 in report) ----
@@ -157,49 +189,84 @@ ahdi_table_output <-
                             style = function(value) {
                               normalized <- (value - min(ahdi_sub$ahdi)) / (max(ahdi_sub$ahdi) - min(ahdi_sub$ahdi))
                               color <- ahdi_pal(normalized)
-                              list(background = color)
-                            },
+                              if (value > 7) {
+                                fcolor <- "white"
+                              } else {
+                                fcolor <- "black"
+                              }
+                              list(background = color, color = fcolor)
+                              },
                             format = colFormat(digits = 2)),
               life_exp = colDef(name = "Life Expectancy at Birth", align = "center",
                                 style = function(value) {
                                   normalized <- (value - min(ahdi_sub$life_exp)) / (max(ahdi_sub$life_exp) - min(ahdi_sub$life_exp))
                                   color <- hlth_pal(normalized)
-                                  list(background = color)
+                                  if (value > 81) {
+                                    fcolor <- "white"
+                                  } else {
+                                    fcolor <- "black"
+                                  }
+                                  list(background = color, color = fcolor)
                                 },
                                 format = colFormat(digits = 1)),
               hs_grad = colDef(name = "HS Degree or more (Adults 25+)", align = "center",
                                style = function(value) {
                                  normalized <- (value - min(ahdi_sub$hs_grad)) / (max(ahdi_sub$hs_grad) - min(ahdi_sub$hs_grad))
                                  color <- educ_pal(normalized)
-                                 list(background = color)
+                                 if (value > 90) {
+                                   fcolor <- "white"
+                                 } else {
+                                   fcolor <- "black"
+                                 }
+                                 list(background = color, color = fcolor)
                                },
                                format = colFormat(digits = 1, suffix = "%")),
               bac_deg = colDef(name = "Bachelors Degree or more (Adults 25+)", align = "center",
                                style = function(value) {
                                  normalized <- (value - min(ahdi_sub$bac_deg)) / (max(ahdi_sub$bac_deg) - min(ahdi_sub$bac_deg))
                                  color <- educ_pal(normalized)
-                                 list(background = color)
+                                 if (value > 50) {
+                                   fcolor <- "white"
+                                 } else {
+                                   fcolor <- "black"
+                                 }
+                                 list(background = color, color = fcolor)
                                },
                                format = colFormat(digits = 1, suffix = "%")),
               grad_deg = colDef(name = "Grad/ Professional Degree (Adults 25+)", align = "center",
                                 style = function(value) {
                                   normalized <- (value - min(ahdi_sub$grad_deg)) / (max(ahdi_sub$grad_deg) - min(ahdi_sub$grad_deg))
                                   color <- educ_pal(normalized)
-                                  list(background = color)
+                                  if (value > 25) {
+                                    fcolor <- "white"
+                                  } else {
+                                    fcolor <- "black"
+                                  }
+                                  list(background = color, color = fcolor)
                                 },
                                 format = colFormat(digits = 1, suffix = "%")),
               school_enroll = colDef(name = "School Enrollment (Ages 3-24)", align = "center",
                                      style = function(value) {
                                        normalized <- (value - min(ahdi_sub$school_enroll)) / (max(ahdi_sub$school_enroll) - min(ahdi_sub$school_enroll))
                                        color <- educ_pal(normalized)
-                                       list(background = color)
+                                       if (value > 85) {
+                                         fcolor <- "white"
+                                       } else {
+                                         fcolor <- "black"
+                                       }
+                                       list(background = color, color = fcolor)
                                      },
                                      format = colFormat(digits = 1, suffix = "%")),
               pers_earn = colDef(name = "Median Personal Earnings (Ages 16+)", align = "center",
                                  style = function(value) {
                                    normalized <- (value - min(ahdi_sub$pers_earn)) / (max(ahdi_sub$pers_earn) - min(ahdi_sub$pers_earn))
                                    color <- earn_pal(normalized)
-                                   list(background = color)
+                                   if (value > 45000) {
+                                     fcolor <- "white"
+                                   } else {
+                                     fcolor <- "black"
+                                   }
+                                   list(background = color, color = fcolor)
                                  },
                                  format = colFormat(digits = 0, separators = TRUE, prefix = "$"))
             ),
@@ -211,6 +278,11 @@ ahdi_table_output <-
             highlight = TRUE
   )
 ahdi_table_output
+
+# ahdi_table_title <- htmlwidgets::prependContent(ahdi_table_output, 
+#                                          h2(class = "title", "Table 1. Albemarle County AHDI Comparison Across Benchmark Geographies"))
+# 
+# ahdi_table_title
 
 
 # Figure 3 (5a in report) ----
@@ -256,6 +328,31 @@ ahdi_map_gg <-
     
   )
 ahdi_map_gg
+
+# interactive/leaflet version
+bins <- c(3,4,5,6,7,8,9,10)
+pal <- colorBin("BuPu", domain = ahdi_map$ahdi, bins = bins)
+
+ahdi_map_transform <- st_transform(ahdi_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = ahdi_map_transform, 
+    fillColor = ~pal(ahdi),
+    weight = 1,
+    opacity = 1,
+    color = "white", 
+    fillOpacity = 0.6,
+    highlight = highlightOptions(
+      weight = 2,
+      fillOpacity = 0.8,
+      bringToFront = T
+    ),
+    popup = paste0("Tract Number: ", ahdi_map_transform$NAME, "<br>",
+                   "Place: ", ahdi_map_transform$keypoints, "<br>",
+                   "AHDI Value: ", round(ahdi_map_transform$ahdi, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = ahdi_map_transform$ahdi, 
+            title = "American Human Development Index", opacity = 0.7)
 
 
 # Figure 4 (6 in report) ----
@@ -307,15 +404,17 @@ ahdi_alb <- ahdi_table[ahdi_table$county == "Albemarle", c("ahdi_ed", "ahdi_inco
 names(ahdi_alb) <- c("Education", "Income", "Health", "Composite")
 
 # plot
-ggplot(tract_ahdi_graph) +
+ahdi_component <- ggplot(tract_ahdi_graph, aes(label = keypoints)) +
   geom_point(
     aes(x = metric,
         y = reorder(keypoints, metric),
-        color = category
+        color = category,
+        size = alpha_indicator,
+        alpha = alpha_indicator
     ),
   )  +
   scale_color_manual(values = composite_pal) +
-  scale_alpha_continuous(range = c(0, .7)) +
+  scale_alpha_continuous(range = c(.9, .7)) +
   scale_size_continuous(range = c(2,4)) +
   scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
@@ -324,7 +423,7 @@ ggplot(tract_ahdi_graph) +
              # linetype = "dashed",
              color = "black",
              size = .2) +
-  annotate("text", x = ahdi_alb[1,"Composite"][[1]], y = 19.5,
+  annotate("text", x = ahdi_alb[1,"Composite"][[1]], y = 0,
            label = paste0( "Albemarle County ", "Composite", " AHDI" ),
            vjust = -.7,
            hjust = 0.5,
@@ -336,21 +435,23 @@ ggplot(tract_ahdi_graph) +
     color = guide_legend(label.position  = "top")
   ) +
   labs(color = "", x = "AHDI", y = "", 
-       #title = "Tract-Level American Human Development Index", 
-       caption = "Figure 4. AHDI and Components by Census Tracts in Albemarle County") +
+       title = "Figure 4. AHDI and Components by Census Tracts in Albemarle County") +
   coord_cartesian(clip = "off") +
   theme_classic() +
   theme(
-    plot.title = element_text(face = "bold", hjust = .5),
-    legend.position = "top",
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     panel.grid.major.y = element_line(linetype = "dashed"),
     axis.line.x = element_line(),
     axis.ticks.x = element_line()
   )
-
-## not quite right -- colors are off, and composite needs to be bigger...
+ahdi_component
+ggplotly(ahdi_component, tooltip = c("metric", "category", "keypoints")) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0, y = 1.05)
+  ) 
+  
 
 
 # Figure 5 (8 in report) ----
@@ -411,6 +512,32 @@ life_exp_map_gg <-
   )
 
 life_exp_map_gg
+
+# interactive/leaflet version
+bins <- c(74,76,78,80,82,84,86,88)
+pal <- colorBin(hlth_colors2, domain = life_map$life_exp, bins = bins)
+
+life_map_transform <- st_transform(life_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = life_map_transform, 
+              fillColor = ~pal(life_exp),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.6,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.8,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", life_map_transform$NAME, "<br>",
+                             "Place: ", life_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(life_map_transform$life_exp, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = life_map_transform$life_exp, 
+            title = "Life Expectancy", opacity = 0.7)
+
 
 
 # Figure 7 (13 in report) ----
@@ -494,6 +621,8 @@ ed_race <-
         plot.title = element_text(hjust = .5, face = "bold")
   )
 ed_race
+# ggplotly(ed_race)
+# would need a lot of re-doing
 
 
 # Figure 8 (14b in report) ----
@@ -542,6 +671,35 @@ ed_map <-
     
   )
 ed_map
+
+# interactive/leaflet version
+educ_colors <- c("#e7dbbc", "#e68026")
+ed_geo_tract <- ed_geo_tract %>% 
+  mutate(perc_bac2 = perc_bac*100)
+
+bins <- c(20,30,40,50,60,70,80,90,100)
+pal <- colorBin(educ_colors, domain = ed_geo_tract$perc_bac2, bins = bins)
+
+ed_map_transform <- st_transform(ed_geo_tract, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = ed_map_transform, 
+              fillColor = ~pal(perc_bac2),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.7,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.9,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", ed_map_transform$NAME, "<br>",
+                             "Place: ", ed_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(ed_map_transform$perc_bac2, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = ed_map_transform$perc_bac2, 
+            title = "% with Bachelor's", opacity = 0.8)
 
 
 # Figure 9 (18 in report) ----
@@ -598,6 +756,31 @@ med_hhinc_map  <-
   )
 med_hhinc_map
 
+# interactive/leaflet version
+bins <- c(40000,50000,60000,70000,80000,90000,100000,110000,120000,130000,140000)
+pal <- colorBin(inc_colors, domain = med_hhinc_tract_map$estimate, bins = bins)
+
+inc_map_transform <- st_transform(med_hhinc_tract_map, crs = 4326) # to WGS84, given error
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>% 
+  addPolygons(data = inc_map_transform, 
+              fillColor = ~pal(estimate),
+              weight = 1,
+              opacity = 1,
+              color = "white", 
+              fillOpacity = 0.7,
+              highlight = highlightOptions(
+                weight = 2,
+                fillOpacity = 0.9,
+                bringToFront = T
+              ),
+              popup = paste0("Tract Number: ", inc_map_transform$NAME, "<br>",
+                             "Place: ", inc_map_transform$keypoints, "<br>",
+                             "AHDI Value: ", round(inc_map_transform$estimate, 1))) %>% 
+  addLegend("bottomright", pal = pal, values = inc_map_transform$estimate, 
+            title = "Median HH Income", opacity = 0.8)
+
 
 # Figure 10 (19 in report) ----
 alice_graph  <-
@@ -617,36 +800,24 @@ inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255)
 alice_pal <- inc_pal(seq(0, 1, length = 3))
 
 alice_gg <- 
-  ggplot(alice_graph, aes(x = name, y = pct, fill = level, group = level)) +
+  ggplot(alice_graph, aes(x = name, y = pct, fill = level, label = number)) +
   geom_col(alpha=0.6) +
   scale_fill_manual(values = alice_pal) +
   geom_text(
-    aes(x = name, label = display2, y = height),  
+    aes(x = name, label = display, y = height),
     alpha = 1, hjust =   .5, size = 2.75) +
-  # geom_text(
-  #   aes(x = name, label = number, y = height-5),  
-  #   alpha = 1, hjust =   .5, size = 2.75) +
-  labs(x="Magisterial District", y="Percent", fill = "Income Status", 
-       #title = "Asset Limited, Income Constrained, Employed Population in Albemarle",
-       caption = "Figure 10. ALICE Threshold in Albemarle County by Magisterial District") +
+  labs(x="Magisterial District", y="Percent", fill = "Income Status") +
     theme_bw() +
   theme(
-    plot.title = element_text(face="bold", hjust = .5, size = 12),
     legend.title = element_blank(),
-    legend.position = "top",
-    axis.title.x = element_text(face = "bold", vjust=-2.5, size = 10),
-    axis.title.y = element_text(face = "bold", size = 10),
-    axis.text.x=element_text(),
-    axis.ticks.x = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.line =  element_line(color  = "white"),
-    panel.spacing = unit(1.5, "lines"),
-    strip.background = element_blank(),
-    strip.text = element_text(face="bold", size = 10),
     panel.border = element_blank()
-    #plot.margin=unit(c(t = .25, r = 1, b = 1.5, l = .1),"cm")
   )
 alice_gg
+ggplotly(alice_gg) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.3, y = 1.1)
+  )
 
 
 # Figure 11 (21 in report) ----
@@ -704,4 +875,8 @@ alice_thresh_gg <-
   facet_wrap(~race, scales = "free_x")
 
 alice_thresh_gg
-
+ggplotly(alice_thresh_gg) %>%
+  layout(legend = list(
+    orientation = "h", 
+    x = 0.45, y = .2)
+  )
