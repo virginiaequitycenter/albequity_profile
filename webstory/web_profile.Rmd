@@ -188,8 +188,8 @@ ahdi_sub <- ahdi_sub %>% mutate(county = recode(county,
 # Palette
 bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7") # bupu (1-4/4)
 hlth_colors <- c("#f0dbe2", "#b02c58")
-educ_colors <- c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
-inc_colors <- c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
+educ_colors <- c("#e7dbbc", "#e68026") #c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
+inc_colors <- c("#b1c5be", "#106449") #c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
 # 
 ahdi_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
 hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
@@ -262,7 +262,7 @@ ahdi_table_output
 
 However, when calculating AHDI scores by census tract, a proxy for neighborhood, we find quite large disparities in overall scores across the county. For example, the tract containing Oak Hill and Southwood has an AHDI score below 5, while tracts containing North Garden and Ivy Garden score near the top of the index scale with scores above 9. The discrepancies in scores between neighborhoods suggests distinct differences in residents’ connections to resources that expand choices, opportunities, and access across the County.
 
-```{r fig5_6, fig.height = 8, fig.width = 8}
+```{r fig5_6, fig.height = 6, fig.width = 8}
 ahdi_map <-
   alb_tract %>%
   left_join(tract_ahdi %>% mutate(GEOID = as.character(geoid)))
