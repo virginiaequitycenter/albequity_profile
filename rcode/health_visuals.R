@@ -30,6 +30,7 @@ library(emojifont)
 library(ggpubr)
 
 select <- dplyr::select
+summarize <- dplyr::summarize
 
 options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
@@ -48,6 +49,9 @@ hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
 
 
 # Life Expectancy ---------------------------------------------------------
+tract_names <- read_csv("tract_names.csv") %>%
+  select(-contains("X"))
+
 
 life_exp <- read_csv("tract_ahdi.csv") %>%
   rename_with(~ tolower(.x))  %>%
@@ -155,10 +159,108 @@ life_exp_graph
 dev.off()
 
 
+# Life Expectancy 2.0 -----------------------------------------------------
+life_expectancy_load <- read_excel("health_rankings.xlsx", sheet = 5, skip = 1) 
 
 
+unique(life_expectancies$ci)
+
+life_expectancies <-
+  life_expectancy_load %>% 
+  select(FIPS, State, County, contains("Life Expectancy")) %>% 
+  rename_with(~tolower(str_replace_all(.x, "\\.", ""))) %>%
+  rename_with(~tolower(str_replace_all(.x, " ", "_")))  %>%
+  gather(label, number, -fips, -state, -county) %>%
+  separate(label, c("label", "demographic"), sep = "\\(") %>%
+  separate(demographic, c("demographic", "ci"), sep = "\\)") %>%
+  
+  mutate(demographic = str_replace_all(demographic, "\\)", ""),
+         demographic = case_when(
+           is.na(demographic) ~ "total",
+           TRUE ~ demographic 
+         ),
+         
+         ci = str_replace_all(ci, "_95%_ci_-_", ""),
+         ci = case_when(
+           ci %in% c("low", "high") ~ ci,
+           TRUE ~ "mean"
+         )
+         
+  ) %>%
+  select(-label) %>%
+  filter(county %in% c("Albemarle")) %>%
+  spread(ci, number) %>%
+  mutate(
+    demo = case_when(demographic == "total" ~ "Overall",
+    TRUE ~ "Race/Ethnicity"
+    ),
+
+      demographic = case_when(
+        demographic == "total" ~ "Albemarle County",
+        TRUE ~ str_to_sentence(demographic)
+      )
+    
+  ) %>%
+  filter(!is.na(mean))
+  
+
+life_expectancies
+
+life_pal <- hlth_pal( seq(0, 1, length = 5))
+
+life_exp_graph  <-
+  ggplot(life_expectancies) +
+  
+  geom_segment(
+    aes(xend = low, x = high, y = reorder(demographic, mean), yend = demographic),
+    size = 3,
+    color = life_pal[5],
+    alpha = .7
+  ) +
+  
+  geom_segment(
+    aes(xend = mean - .05,
+        x = mean + .05,
+        yend = demographic, 
+        y = demographic,
+    ),
+    size = 4
+  )  +
+  
+  geom_text(aes(x = mean , y = demographic, label =  round(mean, 1) ),
+            hjust = .5, vjust = -1) +
+  
+  scale_x_continuous( limits = c(62, 103), breaks = seq(65, 100, 5) ) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  
+  geom_vline(xintercept = 83) +
+  
+  labs( x = "Average Life Expectancy", y = "", title = "Albemarle County Life Expectancy") +
+  coord_cartesian(clip = "off") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = .5, vjust = 6, face = "bold"),
+    legend.position = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # axis.title = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    #   axis.text.x = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm"),
+    panel.spacing = unit(1, "lines"),
+    strip.background = element_blank(),
+    strip.placement = "outside",
+    strip.text.y = element_text(face = "bold"),
+    strip.text.x = element_text(face = "bold")
+    
+  ) +
+  
+  facet_grid(demo ~ . ,  switch = "y", scales = "free",  space = "free_y")
 
 
+life_exp_graph
 
 
 
