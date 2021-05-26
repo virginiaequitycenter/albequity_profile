@@ -23,6 +23,15 @@ library(ggnewscale)
 # Load combined data
 load("webstory_data.RData")
 
+inc_colors <- c("#b1c5be", "#106449")
+inc_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+
+hlth_colors <- c("#f0dbe2", "#b02c58")
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
+
+educ_colors <- c("#e7dbbc", "#e68026")
+ed_ramp <- colour_ramp(educ_colors)
+
 ```
 ## Introduction
 
@@ -178,14 +187,14 @@ ahdi_sub <- ahdi_sub %>% mutate(county = recode(county,
 
 # Palette
 bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7") # bupu (1-4/4)
-hlth_colors <- c("#fff5f0", "#fc9272") # colorbrewer Reds 1,4/9
+hlth_colors <- c("#f0dbe2", "#b02c58")
 educ_colors <- c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
 inc_colors <- c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
-
+# 
 ahdi_pal <- function(x) rgb(colorRamp(bupu)(x), maxColorValue = 255) 
-hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
-educ_pal <- function(x) rgb(colorRamp(educ_colors)(x), maxColorValue = 255) 
-earn_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255) 
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
+educ_pal <- function(x) rgb(colorRamp(educ_colors)(x), maxColorValue = 255)
+earn_pal <- function(x) rgb(colorRamp(inc_colors)(x), maxColorValue = 255)
 
 ahdi_table_output <-
   reactable(ahdi_sub, 
@@ -253,7 +262,7 @@ ahdi_table_output
 
 However, when calculating AHDI scores by census tract, a proxy for neighborhood, we find quite large disparities in overall scores across the county. For example, the tract containing Oak Hill and Southwood has an AHDI score below 5, while tracts containing North Garden and Ivy Garden score near the top of the index scale with scores above 9. The discrepancies in scores between neighborhoods suggests distinct differences in residents’ connections to resources that expand choices, opportunities, and access across the County.
 
-```{r fig5_6}
+```{r fig5_6, fig.height = 8, fig.width = 8}
 ahdi_map <-
   alb_tract %>%
   left_join(tract_ahdi %>% mutate(GEOID = as.character(geoid)))
@@ -349,11 +358,13 @@ ggplot(tract_ahdi_graph) +
   geom_point(
     aes(x = metric,
         y = reorder(keypoints, metric),
-        color = category
+        color = category,
+        size = alpha_indicator,
+        alpha = alpha_indicator
     ),
   )  +
   scale_color_manual(values = composite_pal) +
-  scale_alpha_continuous(range = c(0, .7)) +
+  scale_alpha_continuous(range = c(.9, .7)) +
   scale_size_continuous(range = c(2,4)) +
   scale_x_continuous( limits = c(3, 10.5), breaks = c(seq(3, 10, 1), 0)) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
@@ -398,6 +409,10 @@ The primary health-related measure in the AHDI is life expectancy at birth, that
 The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 8). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to White residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their White neighbors.
 
 ```{r fig8, echo = FALSE}
+hlth_colors <- c("#f0dbe2", "#b02c58")
+
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
+
 
 life_pal <- hlth_pal( seq(0, 1, length = 5))
 
@@ -454,8 +469,6 @@ life_exp_graph  <-
 
 
 life_exp_graph
-
-
 
 ```
 Geographically, we can also see that not every area in the County experiences a similarly high life expectancy (Figure 9). There is a maximum disparity of 11.6 years across neighborhoods 
