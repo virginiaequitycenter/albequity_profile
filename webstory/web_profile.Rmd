@@ -36,10 +36,11 @@ educ_colors <- c("#e7dbbc", "#e68026")
 ed_ramp <- colour_ramp(educ_colors)
 ```
 
+## Centering Equity in Evaluating Well-Being & Quality of Life for Albemarle County Residents
 
 > <span style="color:#3182bd">Albemarle County’s stated mission is to enhance the well-being and quality of life for all community members through the provision of the highest level of public service consistent with the prudent use of public funds.</span>
 
-The Albemarle County Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. This online version provides some key results from the full [Equity Profile](addlink). For further analysis, reporting, and data sources, please see the report.
+The Albemarle County Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. This online version provides some key results from the full [Equity Profile](https://virginiaequitycenter.org/research/content/8306). For further analysis, reporting, and data sources, please see the report.
 
 <p align="center">
   [<img src="eclogo.png">](https://virginiaequitycenter.org)
@@ -804,5 +805,8 @@ Efforts underway include the development and application of a framework for equi
 
 These efforts, while new, reflect a renewed commitment on the part of the County’s local government to deepen and expand its work to ensure the equitable distribution of local government resources and ultimately of well-being in our community. This Profile represents a first iteration of what we expect to become a regular process of assessing community conditions and subsequently measuring our impact in creating positive outcomes for all.
 
+### About
+
+The [Albemarle County Equity Profile](https://virginiaequitycenter.org/research/content/8306) was co-authored by the [The Equity Center](https://virginiaequitycenter.org), A [UVA Democracy Initiative](https://democracyinitiative.virginia.edu/) for the Redress of Inequity through Community-Engaged Scholarship and the [Albemarle County Office of Equity and Inclusion](https://albemarle.org).
 
 
