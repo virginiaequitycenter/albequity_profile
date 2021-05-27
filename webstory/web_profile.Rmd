@@ -36,16 +36,31 @@ educ_colors <- c("#e7dbbc", "#e68026")
 ed_ramp <- colour_ramp(educ_colors)
 ```
 
-```{css, echo = FALSE}
-h2, #TOC ul>li {
-  color: #3182bd;
-}
-```
-
 
 > <span style="color:#3182bd">Albemarle County’s stated mission is to enhance the well-being and quality of life for all community members through the provision of the highest level of public service consistent with the prudent use of public funds.</span>
 
-The Albemarle County Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. This online version is a subset of the full [Equity Profile](addlink).
+The Albemarle County Equity Profile analyzes various conditions across demographic groups and geographic areas that contribute to well-being. This online version provides some key results from the full [Equity Profile](addlink). For further analysis, reporting, and data sources, please see the report.
+
+<p align="center">
+  [<img src="eclogo.png">](https://virginiaequitycenter.org)
+  [<img src="aclogo.png">](https://albemarle.org)
+</p>
+
+```{r logo, fig.align="center"}
+# image_link <- function(image,url,...){
+#   htmltools::a(
+#     href=url,
+#     htmltools::img(src=image,...)
+#     )
+# }
+# 
+# image_link("eclogo.png", "https://virginiaequitycenter.org")
+# image_link("aclogo.png", "https://albemarle.org")
+
+#knitr::include_graphics("eclogo.png")
+#knitr::include_graphics("aclogo.png")
+#![](eclogo.png){#id .class width=220px}
+```
 
 ## Demographic History of Albemarle County
 
@@ -415,7 +430,7 @@ ggplotly(ahdi_component, tooltip = c("metric", "category", "keypoints")) %>%
 
 The primary health-related measure in the AHDI is life expectancy at birth, that is, the average number of years a baby born today is expected to live given current mortality patterns.
 
-The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 5). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to White residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their White neighbors.
+The most recent data available in the County Health Rankings Report estimate Albemarle County’s average life expectancy to be 83 years of age. However, there are major demographic and geographic disparities in life expectancy across Albemarle County (Figure 5). Black residents in the County have a substantially lower life expectancy at birth (77.8 years) compared to white residents (83.4 years). While the life expectancy for Hispanic and Asian community members looks quite high, the much smaller populations on which these estimates are based mean we are less certain about these values. Thus, Figure 8 provides not just the life expectancies, but the range of possible values suggested by the available data. The differences between Black residents and each of the other racially disaggregated groups, however, are stark. Put simply, Black residents can expect to live 5.6 fewer years than their white neighbors.
 
 ### Figure 5. Life Expectancy at Birth by Race in Albemarle County
 
@@ -524,9 +539,9 @@ leaflet() %>%
 
 Degree attainment for those community members over 25 years of age is a key part of the measure of the Access to Knowledge dimension in the AHDI. Residents of Albemarle County have relatively high levels of formal education. About 3 in 5 adults have a bachelor’s degree, while fewer than 1 in 20 residents do not have a high school diploma.
 
-Access to education is not distributed equally, however. Figure 7 reveals significant variation in educational attainment by race and ethnicity across the County. The figure is centered around bachelor degree attainment, to make comparisons of this key educational level readily visible. Only 19 percent of Black residents age 25 or more, about 1 in 5, and 32 percent of Hispanic or Latinx residents age 25 or more, about 1 in 3, have bachelor’s degrees, compared to 58 percent of White residents. At the same time, 16 percent of Black residents and nearly a quarter of Hispanic residents do not have a high school diploma, compared to fewer than 7 percent of White residents. These figures suggest current systems of public and higher education are disproportionately failing students of color, and these educational failures have institutional roots in the racialized legacies of American schools.
+Access to education is not distributed equally, however. Figure 7 reveals significant variation in educational attainment by race and ethnicity across the County. The figure is centered around bachelor degree attainment, to make comparisons of this key educational level readily visible. Only 19 percent of Black residents age 25 or more, about 1 in 5, and 32 percent of Hispanic or Latinx residents age 25 or more, about 1 in 3, have bachelor’s degrees, compared to 58 percent of white residents. At the same time, 16 percent of Black residents and nearly a quarter of Hispanic residents do not have a high school diploma, compared to fewer than 7 percent of white residents. These figures suggest current systems of public and higher education are disproportionately failing students of color, and these educational failures have institutional roots in the racialized legacies of American schools.
 
-### Figure 7. Degree Attainmenet by Race/Ethnicity in Albemarle County 
+### Figure 7. Degree Attainment by Race/Ethnicity in Albemarle County 
 
 ```{r fig13, fig.height = 6, fig.width = 8}
 ed_graph <-
@@ -718,7 +733,7 @@ ggplotly(alice_gg) %>%
   )
 ```
 
-Figure 11 shows how households of each race or ethnicity have fared since 2010 in terms of household income relative to cost of living. The graphs show clearly that median incomes among Black, Hispanic, and Native peoples’ households have been well below the ALICE threshold for the last ten years, while more recently the threshold is overtaking the incomes of White and Asian households.
+Figure 11 shows how households of each race or ethnicity have fared since 2010 in terms of household income relative to cost of living. The graphs show clearly that median incomes among Black, Hispanic, and Native peoples’ households have been well below the ALICE threshold for the last ten years, while more recently the threshold is overtaking the incomes of white and Asian households.
 
 ### Figure 11. ALICE Threshold in Albemarle County by Race/Ethnicity, 2010-2018
 
