@@ -1,16 +1,28 @@
-# Create supplemental table of demographic featuers by tract
-# 2021-02-02 mpc
+## ...........................
+## Script name: living_standards_visuals.R
+##
+## Author: Michele Claibourn, Sam Powers
+## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Generate tract characteristics for appendix 
+##
+## ...........................
+## set working directory
+
+setwd("data")
 
 
-# Libraries
+## ...........................
+## load packages ----
 library(tidyverse)
 library(tidycensus)
 library(kableExtra)
 
-setwd("data")
 
-# Prep data for table
-# Pull data
+## ...........................
+## Prep data ----
+
+## Pull data
 dp05 <-
   get_acs(year = 2019,
            geography = "tract",
@@ -20,14 +32,14 @@ dp05 <-
            survey = "acs5", 
            cache = TRUE) 
 
-# Generate labels
+## Generate labels
 dp05_labels <- 
   load_variables(2019,
                  "acs5/profile", 
                  cache = TRUE) %>%
   rename(variable = name)
 
-# Add labels and parse, keep percents, remove unneeded variables
+## Add labels and parse, keep percents, remove unneeded variables
 dp05_table <- dp05 %>%
   left_join(dp05_labels) %>%
   separate(label,
@@ -83,13 +95,13 @@ dp05_table <- dp05 %>%
   ) %>% 
   select(GEOID, NAME, variable, estimate, moe, category, final_level ) 
 
-# reshape for tract table format
+## reshape for tract table format
 dp05_table <- dp05_table %>%
   select(-moe, -variable, -category) %>%
   distinct() %>% 
   pivot_wider(names_from = final_level, values_from = estimate) 
 
-# reduce tract name, create age groups, combine race groups, select and order vars
+## reduce tract name, create age groups, combine race groups, select and order vars
 dp05_table <- dp05_table %>% 
   mutate(NAME = str_replace(NAME, ", Albemarle County, Virginia", ""),
          NAME = str_replace(NAME, "Census Tract ", "")) %>% 
@@ -109,9 +121,10 @@ dp05_table <- dp05_table %>%
          `Two or more races`, `Hispanic or Latino` = `Hispanic or Latino (of any race)`)
   
 
-# Make pretty table
+## ...........................
+## Make pretty table
 
-# add tract descriptors
+## add tract descriptors
 tract_names <- read_csv("tract_names.csv") %>%
   select(geoid, keypoints) %>% 
   mutate(GEOID = as.character(geoid)) %>% 
@@ -121,7 +134,7 @@ dp05_table_final <- dp05_table %>%
   left_join(tract_names) %>% 
   select(`Tract Number` = Tract, Description = keypoints, everything(), -GEOID)
 
-# kableExtra
+## kableExtra
 kbl(dp05_table_final, 
     align = c("l", "l", rep("c", 14)),
     caption = "Albemarle County Tract Demographics") %>%
@@ -137,4 +150,4 @@ kbl(dp05_table_final,
   footnote(
     general = "Estimates are from the 5-year American Community Survey, 2019, Table DP05.", 
     footnote_as_chunk = TRUE) %>%
-  as_image(file = "graph/supplemental_tract_demo.pdf")
+  as_image(file = "../final_graphs/supplemental_tract_demo.pdf")

@@ -1,20 +1,19 @@
-## ---------------------------
+## ...........................
 ## Script name: education_visuals.R
 ##
-## Author:Sam Powers
+## Author: Michele Claibourn, Sam Powers
 ## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Analysis and visuals for education section 
 ##
-## ---------------------------
-## Purpose of script: Albemarle Equity Profile Visuals for ahdi
-##   
-##
-## ---------------------------
+## ...........................
 ## set working directory
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+setwd("data")
 
-## ---------------------------
-## load up the packages we will need:
+## ...........................
+## load packages ----
 
 library(tidyverse)
 library(ggforce) # for 'geom_arc_bar'
@@ -24,25 +23,30 @@ library(scales)
 library(tigris)
 library("ggspatial")
 
-select <- dplyr::select
+options(scipen = 6, digits = 4) # to view outputs in non-scientific notation
+select <- dplyr::select # avoid function name conflicts
 
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
+## ...........................
+## set palette ----
 
-# Ed Color Theme ----------------------------------------------------------
+## Pal 1
+# educ_colors <- c("#e7dbbc", "#ffc000")
 
-# PAl 1
-educ_colors <- c("#e7dbbc", "#ffc000")
+## Pal 2
+# educ_colors <- c("#dfdcce", "#624906")
 
-# Pal 2
-educ_colors <- c("#dfdcce", "#624906")
-
-# Pal 3
+## Pal 3
 educ_colors <- c("#e7dbbc", "#e68026")
 
 ed_ramp <- colour_ramp(educ_colors)
 
-# read ed data ------------------------------------------------------------
+
+## ...........................
+## read ed data ----
+
+tract_names <- read_csv("tract_names.csv") %>%
+  select(-contains("X"))
 
 ed_dist <- read_csv("education_distrbution.csv")
 
@@ -51,7 +55,7 @@ proper=function(s) gsub("(?<=\\b)([a-z])", "\\U\\1", tolower(s), perl=TRUE)
 unique(ed_dist$degree)
 unique(ed_dist$Race)
 
-ed_dist <-read_csv("education_distrbution.csv") %>%
+ed_dist <- read_csv("education_distrbution.csv") %>%
   mutate(Race = proper(Race)) %>%
   mutate(
     degree = factor(degree,
@@ -62,7 +66,6 @@ ed_dist <-read_csv("education_distrbution.csv") %>%
                       "Bachelor's degree or higher"
                     ))
     ),
-    
     Race = factor(
       Race,
       levels = rev(c("All",
@@ -76,14 +79,14 @@ ed_dist <-read_csv("education_distrbution.csv") %>%
                      "Hispanic Or Latino"
                      #  "White Alone, Not Hispanic Or Latino"
       ))
-      
     )
   ) %>%
   filter(!is.na(Race))
 
 
+## ...........................
+## Education by Race ----
 
-# Education by Race -------------------------------------------------------
 ed_graph <-
   ed_dist %>%
   ungroup() %>%
@@ -167,7 +170,8 @@ ed_race
 dev.off()
 
 
-# Bachelor's Degrees Tract Map  ------------------------------------
+## ...........................
+## Bachelor's Tract Map ----
 
 alb_tract <- tracts(state = "VA", county = "003") %>%
   mutate(GEOID = as.numeric((GEOID)))
@@ -177,7 +181,6 @@ ed_tract <- read_csv("geographic_education.csv")
 ed_geo_tract <- alb_tract %>%
   left_join(ed_tract) %>%
   mutate(perc_bac = perc_bac/100)
-
 
 ed_map <-
   ggplot(ed_geo_tract) +
@@ -230,8 +233,8 @@ ed_map
 dev.off()
 
 
-
-# Tract Level Lollipop Chart -------------------------------------------------
+## ...........................
+## Attainment Lollipop Chart ----
 
 ed_tract_graph  <-
   ed_tract %>%
@@ -240,10 +243,8 @@ ed_tract_graph  <-
   filter(!grepl("UVA", keypoints)) %>%
   mutate(label = paste0(round(perc_bac, 1), "%"))
 
-
 bac_deg_graph  <-
   ggplot(ed_tract_graph) +
-  
   geom_segment(
     aes(xend = perc_bac, x = 0, y = reorder(keypoints ,perc_bac), yend = keypoints), size = 1
   ) +
@@ -254,7 +255,6 @@ bac_deg_graph  <-
     ),
     size = 3
   )  +
-  
   scale_color_steps(
     low = educ_colors[1],
     high = educ_colors[2],
@@ -262,14 +262,10 @@ bac_deg_graph  <-
     na.value = "grey50",
     guide = "coloursteps",
     aesthetics = "color",
-    
   ) +
-  
   geom_text(aes(x = perc_bac + 2.5, y = keypoints, label = label ), hjust = 0) +
-  
   scale_x_continuous( limits = c(0, 90), breaks = c(seq(0, 100, 10), 0), labels = function(x) paste0(x,"%")) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  
   geom_vline(xintercept = 60.57,
              # linetype = "dashed",
              color = "black",
@@ -280,9 +276,7 @@ bac_deg_graph  <-
            hjust = 0.5,
            color = "black",
            size = 3.5 ) +
-    
   labs( x = "Percent With Bachelor's degree", y = "", title = "Percent with Bachelor's Degrees by Tract") +
-  
   coord_cartesian(clip = "off") +
   theme_classic() +
   theme(
@@ -296,7 +290,6 @@ bac_deg_graph  <-
     axis.line.x = element_line(),
     axis.ticks.x = element_line(),
     plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
-    
   )
 
 
@@ -307,8 +300,8 @@ bac_deg_graph
 dev.off()
 
 
-
-# School Enrollment Tract Map ---------------------------------------------
+## ...........................
+## School Enrollment Map ----
 
 tract_enroll <- read_csv("tract_enroll.csv")
 
@@ -328,7 +321,6 @@ enroll_map <-
     aesthetics = "fill",
     n.breaks = 10,
     labels = percent
-    
   ) +
   theme_void() +
   guides(fill =
@@ -367,9 +359,11 @@ enroll_map
 dev.off()
 
 
-### Within Schools ----------------------------------------------------------
+## ...........................
+## Within Schools Data ----
 
-# Student Discipline ----------------------------------------------------------
+### Student Discipline ----
+
 student_data <- read_csv("student_data.csv") %>%
   mutate(pop  = factor(pop, levels = rev(c(
     "All",
@@ -387,12 +381,10 @@ student_data <- read_csv("student_data.csv") %>%
 
 suspended  <-
   ggplot(student_data[!student_data$pop == "All" ,]) +
-  
   geom_segment(
     aes(xend = Suspended, x = 0, y = pop, yend = pop),
     size = 1
   ) +
-  
   geom_point(
     aes(x = Suspended,
         y = pop
@@ -400,12 +392,10 @@ suspended  <-
     color = educ_colors[2],
     size = 3
   )  +
-  
   geom_vline(xintercept = student_data[student_data$pop == "All" , "Suspended"][[1]],
              linetype = "dashed",
              color = "black",
              size = .2) +
-  
   annotate("text",
            x = student_data[student_data$pop == "All" , "Suspended"][[1]],
            y = 9,
@@ -414,13 +404,9 @@ suspended  <-
            hjust = 0.5,
            color = "black",
            size = 3.5 ) +
-  
-  
   geom_text(aes(x = Suspended + .2, y = pop, label = paste0(round(Suspended), "%") ), hjust = 0) +
-  
   scale_x_continuous( limits = c(0, 10), breaks = c(seq(0, 10, 1), 0), labels = function(x) paste0(x,"%")) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  
   guides(
     alpha = FALSE,
     size = FALSE,
@@ -440,7 +426,6 @@ suspended  <-
     axis.line.x = element_line(),
     axis.ticks.x = element_line(),
     plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
-    
   )
 
 
@@ -451,15 +436,14 @@ suspended
 dev.off()
 
 
-# Absences  ----------------------------------------------------------
+### Absences ----
+
 absent  <-
   ggplot(student_data[!student_data$pop == "All" ,]) +
-  
   geom_segment(
     aes(xend = `Chronically Absent`, x = 0, y = pop, yend = pop),
     size = 1
   ) +
-  
   geom_point(
     aes(x = `Chronically Absent`,
         y = pop
@@ -467,7 +451,6 @@ absent  <-
     color = educ_colors[2],
     size = 3
   )  +
-  
   geom_vline(xintercept = student_data[student_data$pop == "All" , "Chronically Absent"][[1]],
              linetype = "dashed",
              color = "black",
@@ -480,12 +463,9 @@ absent  <-
            hjust = 0.5,
            color = "black",
            size = 3.5 ) +
-  
   geom_text(aes(x = `Chronically Absent` + .4, y = pop, label = paste0(round(`Chronically Absent`), "%") ), hjust = 0) +
-  
   scale_x_continuous( limits = c(0, 15), breaks = c(seq(0, 15, 2.5), 0), labels = function(x) paste0(x,"%")) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  
   guides(
     alpha = FALSE,
     size = FALSE,
@@ -505,9 +485,7 @@ absent  <-
     axis.line.x = element_line(),
     axis.ticks.x = element_line(),
     plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
-    
   )
-
 
 jpeg(filename = "../final_graphs/education/absent.jpg", height = 25*72, width = 25*72, units = 'px', res = 300)
 
@@ -516,22 +494,20 @@ absent
 dev.off()
 
 
-# AP Testing  ----------------------------------------------------------
+### AP Testing  ----
+
 ap  <-
   ggplot(student_data[!student_data$pop == "All" ,]) +
-  
   geom_segment(
     aes(xend = `Enrolled in AP Courses`, x = 0, y = pop, yend = pop),
     size = 1
   ) +
-  
   geom_point(
     aes(x = `Enrolled in AP Courses`,
         y = pop
     ),
     color = educ_colors[2],
     size = 3  )  +
-  
   geom_vline(xintercept = student_data[student_data$pop == "All" , "Enrolled in AP Courses"][[1]],
              linetype = "dashed",
              color = "black",
@@ -544,12 +520,9 @@ ap  <-
            hjust = 0.5,
            color = "black",
            size = 3.5 ) +
-  
   geom_text(aes(x = `Enrolled in AP Courses` + 2, y = pop, label = paste0(round(`Enrolled in AP Courses`), "%") ), hjust = 0) +
-  
   scale_x_continuous( limits = c(0, 60), breaks = c(seq(0, 60, 10), 0), labels = function(x) paste0(x,"%")) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  
   guides(
     alpha = FALSE,
     size = FALSE,
@@ -569,18 +542,12 @@ ap  <-
     axis.line.x = element_line(),
     axis.ticks.x = element_line(),
     plot.margin = margin(l = .5, r = 1, t = 2, b =1, "cm")
-    
   )
-
 
 jpeg(filename = "../final_graphs/education/ap.jpg", height = 25*72, width = 25*72, units = 'px', res = 300)
 
 ap
 
 dev.off()
-
-
-
-
 
 

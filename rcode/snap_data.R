@@ -1,3 +1,19 @@
+## ...........................
+## Script name: snap_datas.R
+##
+## Author: Michele Claibourn, Sam Powers
+## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Analysis and visuals for health section 
+##
+## ...........................
+## set working directory
+
+setwd("data")
+
+## ...........................
+## load packages ----
+
 library(tidyverse)
 library(jsonlite)
 library(tidycensus)
@@ -7,30 +23,44 @@ library(scales)
 library(sf)
 # library(ggmap)
 
-# API query: from https://usda-fns.hub.arcgis.com/datasets/USDA-FNS::snap-store-locations/geoservice
 
-# County query
+## ...........................
+## set palette ----
+hlth_colors <- c("#f0dbe2", "#b02c58")
+
+hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
+
+
+## ...........................
+## pull store location data ----
+
+## API query: from https://usda-fns.hub.arcgis.com/datasets/USDA-FNS::snap-store-locations/geoservice
+
+## County query
 # full_path <- "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/arcgis/rest/services/Store_Locations/FeatureServer/0/query?where=State%20%3D%20'VA'%20AND%20County%20%3D%20'ALBEMARLE'%20OR%20County%20%3D%20'CHARLOTTESVILLE'&outFields=*&outSR=4326&f=json"
 
-# lat/lon query
+## lat/lon query
 full_path <- "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/arcgis/rest/services/Store_Locations/FeatureServer/0/query?where=Longitude%20%3E%3D%20-78.83887%20AND%20Longitude%20%3C%3D%20-78.20938%20AND%20Latitude%20%3E%3D%2037.72264%20AND%20Latitude%20%3C%3D%2038.27793&outFields=*&outSR=4326&f=json"
 
-#     xmin      ymin      xmax      ymax
-# -78.83887  37.72264 -78.20938  38.27793
+##     xmin      ymin      xmax      ymax
+## -78.83887  37.72264 -78.20938  38.27793
 
-# Retrieve data
+## Retrieve data
 stores_json <- fromJSON(full_path)
 
-# Extract data frame from list
+## Extract data frame from list
 stores <- stores_json$features$attributes
-# 132 - Siri's estimate in revision is based on distance
+## 132 - Siri's estimate in revision is based on distance
 
-# make it an SF object
+## make it an SF object
 stores_4326 <- st_as_sf(stores,
                         coords = c("Longitude", "Latitude"),
                         crs = 4326)
 
-# Albemarle snap data by tract
+
+## ...........................
+## pull snap recipient data ----
+
 tract_snap <- get_acs(geography = "tract",
                         table = "S2201",
                         state = "VA",
@@ -39,25 +69,26 @@ tract_snap <- get_acs(geography = "tract",
                         year = 2019,
                         cache_table = TRUE)
 
-# could use percents or households
-# households = "S2201_C03_001"
-# percent = "S2201_C04_001"
+## could use percents or households
+## households = "S2201_C03_001"
+## percent = "S2201_C04_001"
+
 tract_snap_per <- tract_snap %>%
   filter(variable == "S2201_C04_001")
 
 tract_snap_house <- tract_snap %>%
   filter(variable == "S2201_C03_001")
 
-
-# Albemarle tract data
+## Albemarle tract data
 alb_tract <- tracts(state = "VA", county = "003")
 
-# add surrounding counties?
+## add surrounding counties?
 near_county <- counties(state = "VA")
 near_county <- near_county %>% 
   filter(COUNTYFP %in% c("029", "065", "079", "109",
                          "125", "137", "015", "165"))
-# add surrounding tracts?
+
+## add surrounding tracts?
 near_tract <- tracts(state = "VA", 
                      county = c("029", "065", "079", "109",
                                 "125", "137", "015", "165"))
@@ -74,14 +105,10 @@ snap_tract <- alb_tract %>%
               select(GEOID, house = estimate)
             )
 
-# Map snap use by tract with retailers overlaid
+## ...........................
+## Map snap use/food retailers ----
 snap_tract_4326 <- sf::st_transform(snap_tract, 4326)
 st_bbox(snap_tract_4326)
-
-# Pal 3
-hlth_colors <- c("#f0dbe2", "#b02c58")
-
-hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255)
 
 snap_map <-
   ggplot(snap_tract_4326) +
@@ -127,4 +154,8 @@ snap_map <-
     plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
   )
 
+jpeg(filename = "../final_graphs/health/snap_locations_map.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
+
 snap_map
+
+dev.off()

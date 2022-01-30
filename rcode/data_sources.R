@@ -1,52 +1,64 @@
-## ---------------------------
+## ...........................
 ## Script name: data_sources.R
 ##
-## Author:Sam Powers
+## Author: Michele Claibourn, Sam Powers
 ## Date Created: 2020-12-10
-## Updated: 2021-01-18 mpc
-##
-## ---------------------------
-## Purpose of script: To compile all of the relevant data sources for the albemarle equit profile 
+## Updated: 2022-01-28 mpc
+## Purpose: Compile relevant data sources for the albemarle equity profile 
 ##   
-##
-## ---------------------------
+## ...........................
 ## set working directory
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+setwd("data")
 
-# setwd("../data")
-
-## ---------------------------
-## load up the packages we will need:
+## ...........................
+## load packages ----
 
 library(tidyverse)
 library(readxl)
 library(tidycensus)
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-select <- dplyr::select
-## ---------------------------
+options(scipen = 6, digits = 4) # to view outputs in non-scientific notation
+select <- dplyr::select # avoid function name conflicts
 # census_api_key("", install = TRUE, overwrite = TRUE)
 
+## ...........................
+## Non ACS data ----
 
-# What to pull from the Census --------------------------------------------
-# County File & Tract File
-# Tract Level Life Expectancy: https://www.cdc.gov/nchs/nvss/usaleep/usaleep.html <- use this for life expectancy for the tract disaggregated AHDI
-# County Level Life Expectancy:  https://www.countyhealthrankings.org/app/virginia/2020/measure/outcomes/147/data
+## Initial download
+## County Level Life Expectancy:  https://www.countyhealthrankings.org/app/virginia/2020/measure/outcomes/147/data
+# url <- "https://www.countyhealthrankings.org/sites/default/files/media/document/2020%20County%20Health%20Rankings%20Virginia%20Data%20-%20v1_0.xlsx"
+# destfile <- "health_rankings.xlsx"
+# download.file(url, destfile)
 
+## Tract Level Life Expectancy: https://www.cdc.gov/nchs/nvss/usaleep/usaleep.html <- use this for life expectancy for the tract disaggregated AHDI
+# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/XLSX/VA_A.XLSX"
+# destfile <- "tract_expectancy.xlsx"
+# download.file(url, destfile)
+
+## ALICE cost of living and estimates
+# https://www.unitedforalice.org/virginia
+# url <- "https://www.unitedforalice.org/Attachments/StateDataSheet/DataSheet_VA.xlsx"
+# destfile <- "alice_va.xlsx"
+# download.file(url, destfile)
+
+
+## ...........................
+## ACS/Census data ----
+## County File & Tract File
+
+## Find varnames
 acs1 <- load_variables(2019, "acs1", cache = TRUE)
 acs5 <- load_variables(2019, "acs5", cache = TRUE)
 acs1_2019 <- load_variables(2019, "acs1/subject", cache = TRUE)
-View(acs1_2019)
-acs1_2019_prof <- load_variables(2019, "acs1/profile", cache = TRUE)
-View(acs1_2019_prof)
+# View(acs1_2019)
+# acs1_2019_prof <- load_variables(2019, "acs1/profile", cache = TRUE)
+# View(acs1_2019_prof)
 
 
-
-# Full Census Demographic Breakdown of Albemarle --------------------------
-
-## Try to pull the 2010 census estimates 
-## 
+## Data Profile, Demographic Breakdown of Albemarle ----
+## ACS 2010-2019, 1-year estimates
 
 demographic_tables <-
   map_df(2019:2010,
@@ -63,7 +75,7 @@ demographic_tables <-
            mutate(year = .x)
   )
 
-View(demographic_tables)
+# View(demographic_tables)
 
 acs1_dp_labels <- 
   map_df(2019:2010,
@@ -74,7 +86,7 @@ acs1_dp_labels <-
          ) %>%
 rename(variable = name)
 
-
+## wrangle
 alb_demographic_profile_2010_2019 <-
 demographic_tables %>%
   left_join(acs1_dp_labels) %>%
@@ -119,7 +131,7 @@ demographic_tables %>%
   ) %>% 
   select(variable, estimate, moe, year, category, final_level ) 
 
-View(alb_demographic_profile_2010_2019)
+# View(alb_demographic_profile_2010_2019)
 
 alb_demographic_table <-
 alb_demographic_profile_2010_2019 %>%
@@ -129,13 +141,13 @@ alb_demographic_profile_2010_2019 %>%
  # select(-category) %>%
  # distinct()
 
-alb_demographic_table %>% View()
+# alb_demographic_table %>% View()
 
 write_csv(alb_demographic_table, path  = "demographic_table.csv")
 
 
-# 2019 Age By Sex ---------------------------------------------------------
-
+## ...........................
+## 2019 Age By Sex ----
 
 sex_age_pull <-
          get_acs(
@@ -197,21 +209,18 @@ sex_age_pull %>%
 write_csv(sex_age, path  = "sex_age.csv")
 
 
-# Table 1: AHDI -----------------------------------------------------------
-# How to Calculate HDI
-# http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
-# Use 2019 1 year estimates data.  
-# income goal posts in 2019 dollars created with https://data.bls.gov/cgi-bin/cpicalc.pl
+## ...........................
+## AHDI ----
+## Calculation of AHDI: http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
+## Use 2019 1-year estimates data 
+## income goal posts in 2019 dollars determined with https://data.bls.gov/cgi-bin/cpicalc.pl
 
-# County Level Life Expectancy
-# url <- "https://www.countyhealthrankings.org/sites/default/files/media/document/2020%20County%20Health%20Rankings%20Virginia%20Data%20-%20v1_0.xlsx"
-# destfile <- "health_rankings.xlsx"
-# download.file(url, destfile)
-
-# national life expectancies
+### AHDI Health (county) ----
+## national life expectancies
 us_life_expectancy_load <- read_csv("health_analytic_data2020.csv") 
 life_expectancy_load <- read_excel("health_rankings.xlsx", sheet = 5, skip = 1) 
 
+# US life expectancy overall
 us_life_expectancy <- us_life_expectancy_load %>% 
   select(fips = `5-digit FIPS Code`, state = Name, contains("Life expectancy")) %>% 
   rename_with(~tolower(str_replace_all(.x, " ", "_")))  %>%
@@ -224,7 +233,7 @@ us_life_expectancy <- us_life_expectancy_load %>%
          everything()) %>% 
   mutate(across(contains("life"), as.numeric))
 
-# Get Life Expectancies 
+# Life expectancies, Albemarle and benchmark localities 
 life_expectancies <-
   life_expectancy_load %>% 
   select(FIPS, State, County, contains("Life Expectancy")) %>% 
@@ -252,9 +261,9 @@ life_expectancies <-
   ))
   
 
-# Census AHDI County Data -------------------------------------------------
-# Pull ACS 1 for the few that you can and pull ACS 5 for charlottesville. 
-# Get Fips Codes
+### AHDI, ACS measures (county) ----
+## Pull ACS 1 where available, ACS 5 for charlottesville. 
+## Get Fips Codes
 data(fips_codes)
 counties <-
   fips_codes %>%
@@ -291,6 +300,7 @@ table1_dat <-
   left_join(tab1_labs) %>%
   
   bind_rows(
+
 # County Data Cville
     get_acs(
       year = 2019,
@@ -321,7 +331,7 @@ table1_dat <-
 ) %>% 
   bind_rows(
     
-    # US Data
+# US Data
     get_acs(
       year = 2019,
       geography = "us",
@@ -335,9 +345,9 @@ table1_dat <-
   )
 
 
-# Education Enrollment Data 
-# tract_schl: 6 groups (3-4, 5-9, 10-14, 15-17, 18-19, 20-24) must be summed
-#             population and enrolled, and divided
+## Education Enrollment Data 
+## tract_schl: 6 groups (3-4, 5-9, 10-14, 15-17, 18-19, 20-24) must be summed
+##             population and enrolled, and divided
 county_enroll <- get_acs(geography = "county", 
                          table = "S1401", 
                          state = "VA", 
@@ -357,7 +367,6 @@ cville_enroll <- get_acs(geography = "county",
 state_enroll <- get_acs(geography = "state", 
                          table = "S1401", 
                          state = "VA", 
-                    #     county = counties$county_code, 
                          survey = "acs1", 
                          year = 2019, 
                     cache_table = TRUE)
@@ -368,7 +377,7 @@ us_enroll <- get_acs(geography = "us",
                         year = 2019, 
                         cache_table = TRUE)
 
-# County Level School Enrollment Data
+## County Level School Enrollment Data
 county_schl_num <- county_enroll %>% 
   bind_rows(cville_enroll) %>%
   filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
@@ -391,7 +400,7 @@ county_schl <- county_schl_ratio %>%
             schlM = round(schlM*100,1)) %>%
   select(fips = GEOID, school_enroll = schlE)
 
-# State Level School Enrollment Data 
+## State Level School Enrollment Data 
 state_schl_num <- state_enroll %>% 
   filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
   group_by(GEOID, NAME) %>% 
@@ -413,7 +422,7 @@ state_schl <- state_schl_ratio %>%
   select(fips = GEOID, school_enroll = schlE) %>%
   mutate(fips = "51000")
 
-# US Level School Enrollment Data 
+## US Level School Enrollment Data 
 us_schl_num <- us_enroll %>% 
   filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
   group_by(GEOID, NAME) %>% 
@@ -436,13 +445,13 @@ us_schl <- us_schl_ratio %>%
   mutate(fips = "00000")
 
 
-# Enrollment totals
+## Enrollment totals
 enrollment <-
 county_schl %>%
   bind_rows(state_schl) %>% 
   bind_rows(us_schl)
 
-# Finalize Table 1 Data
+## Finalize Table 1 Data
 table1_final <-
 table1_dat %>%
   select(-variable) %>%
@@ -467,28 +476,28 @@ table1_dat %>%
 
 table1_final
 
-
 write_csv(table1_final, path = "ahdi_table.csv")
 
 
-# Racially Disaggregated AHDI in Albemarle --------------------------------
+## ...........................
+## AHDI in Albemarle, by race ----
 
-# Life Expectancy
-# County Rankings source. 
+## Life Expectancy
+## County Rankings source. 
 le_alb <-
 life_expectancies %>%
   filter(county == "Albemarle")
 
 write_csv(le_alb, path = "race_exp.csv")
 
-# We might only get differential life expectancy tbh
+## We might only get differential life expectancy tbh
 
-# Racially Disaggregated Educational Achievement 
-# Need to use the 5 year estimates for this one. 
+## Racially Disaggregated Educational Achievement 
+## Need to use the 5 year estimates for this one. 
 
-# "hs_grad", "bac_deg", "grad_deg"
+## "hs_grad", "bac_deg", "grad_deg"
 
-# These do not have most races in them. Just Black & White
+## Most are empty; only Black and White
 race_disag_ed_1B <-
   map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
          ~ get_acs(geography = "county",
@@ -496,6 +505,18 @@ race_disag_ed_1B <-
                    state = "VA", 
                    county = "003", 
                    survey = "acs1",
+                   year = 2019)  %>%
+           left_join(acs1 %>% rename(variable = name))
+  )
+
+## These do not exist???
+race_disag_ed_5B <-
+  map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
+         ~ get_acs(geography = "county",
+                   table = .x,
+                   state = "VA", 
+                   county = "003", 
+                   survey = "acs5",
                    year = 2019)  %>%
            left_join(acs1 %>% rename(variable = name))
   )
@@ -537,7 +558,7 @@ race_disag_ed_1B %>%
 
 cleaned_white_black_ahdi_ed
 
-# Just need black & white enrollment
+## Just need black & white enrollment given above limitations
 
 ## Getting the right age-grouped numerators is not a super viable option for race -- uggh. 
 alb_race_enroll <- get_acs(geography = "county", 
@@ -548,16 +569,12 @@ alb_race_enroll <- get_acs(geography = "county",
                          year = 2019, 
                          cache_table = TRUE) 
 
+## Stopped; given data limitations, chose not to pursue further
 
 
-
-# Tract Level AHDI Within Albemarle ---------------------------------------
-
-# Tract Level Life Expectancym
-# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/XLSX/VA_A.XLSX"
-# destfile <- "tract_expectancy.xlsx"
-# download.file(url, destfile)
-
+## ...........................
+## AHDI (tract level) ----
+### Life expectacy
 tract_expectancy_load <- read_excel("tract_expectancy.xlsx")
 
 tract_expectancy <- 
@@ -573,7 +590,7 @@ tract_expectancy <-
   mutate(fips = paste0(state_fips, county_fips)) %>%
   filter(county_fips == "003")
 
-# Personal Earnings, HS Grad, Bac Degree, Grad Degree
+### ACS measures: Personal Earnings, HS Grad, Bac Degree, Grad Degree
 tract_facts <- get_acs(geography = "tract",
                        variables = tab1_labs$variable,
                        state = "VA", 
@@ -584,7 +601,7 @@ tract_facts <- get_acs(geography = "tract",
   left_join(tab1_labs)
 
 
-# School enrollment
+### ACS measures: School enrollment
 tract_enroll <- get_acs(geography = "tract", 
                         table = "S1401", 
                         state = "VA", 
@@ -593,8 +610,6 @@ tract_enroll <- get_acs(geography = "tract",
                         year = 2019, 
                         cache_table = TRUE)
 
-
-# Tract Level School Enrollment Data
 tract_schl_num <- tract_enroll %>% 
   filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
   group_by(GEOID, NAME) %>% 
@@ -615,8 +630,9 @@ tract_schl <- tract_schl_ratio %>%
             schlM = round(schlM*100,1)) %>%
   select(GEOID, school_enroll = schlE)
 
-View(tract_schl)
-# Put it all together
+# View(tract_schl)
+
+## Put it all together
 tract_ahdi <-
   tract_facts %>%
   select(-variable) %>%
@@ -637,15 +653,17 @@ tract_ahdi <-
     ahdi = (ahdi_health + ahdi_ed + ahdi_income)/3  ) 
 
 
-tract_ahdi %>% View()
+# tract_ahdi %>% View()
 
 summary(tract_ahdi$ahdi)
 
 write_csv(tract_ahdi, path = "tract_ahdi.csv")
 
-# Education Section -------------------------------------------------------
 
-# These do not have most races in them. Just Black & White
+## ...........................
+## Education data ----
+
+## These do not have most races in them. Just Black & White
 race_disag_ed_1B <-
   map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
          ~ get_acs(geography = "county",
@@ -657,7 +675,7 @@ race_disag_ed_1B <-
            left_join(acs1 %>% rename(variable = name))
   )
 
-# These do not have the Grad degrees in them Still missing some data 
+## These do not have the Grad degrees in them, still missing for many groups
 race_disag_ed_1C <-
   map_df(c("C15002A","C15002B", "C15002C", "C15002D", "C15002E", "C15002F", "C15002G", "C15002H", "C15002I"),
          ~ get_acs(geography = "county",
@@ -669,9 +687,9 @@ race_disag_ed_1C <-
            left_join(acs1 %>% rename(variable = name))
   )
 
-View(race_disag_ed_1C)
+# View(race_disag_ed_1C)
 
-# "K201501" # Supplemental table 1 - tidycensus will not pull
+## Try "K201501" Supplemental table 1 - tidycensus will not pull
 race_disag_ed_1K <-
   map_df(c( "K201501B"),
          ~ get_acs(geography = "county",
@@ -683,21 +701,7 @@ race_disag_ed_1K <-
          #  left_join(acs1 %>% rename(variable = name))
   )
 
-
-# These do not exist???
-race_disag_ed_5B <-
-  map_df(c("B15002A","B15002B", "B15002C", "B15002D", "B15002E", "B15002F", "B15002G", "B15002H", "B15002I"),
-         ~ get_acs(geography = "county",
-                   table = .x,
-                   state = "VA", 
-                   county = "003", 
-                   survey = "acs5",
-                   year = 2019)  %>%
-           left_join(acs1 %>% rename(variable = name))
-  )
-
-
-# No Grad, but All races. 
+## No Grad, but All races -- use this for now
 race_disag_ed_5C <-
   map_df(c("C15002A","C15002B", "C15002C", "C15002D", "C15002E", "C15002F", "C15002G", "C15002H", "C15002I"),
          ~ get_acs(geography = "county",
@@ -708,7 +712,6 @@ race_disag_ed_5C <-
                    year = 2019)  %>%
            left_join(acs1 %>% rename(variable = name))
   )
-
 
 disag_ed_1C_total <-
   map_df(c("C15002"),
@@ -721,12 +724,11 @@ disag_ed_1C_total <-
            left_join(acs1 %>% rename(variable = name))
   )
 
-## Add Sex into this one. 
+## Add Sex into this one 
 
-## This does not have graduate level and above in it. We need something better from somewhere
+## This does not have graduate level and above in it
 ed_table_race_total <-
-
-race_disag_ed_5C %>%
+  race_disag_ed_5C %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!") %>%
   mutate(
@@ -756,7 +758,6 @@ race_disag_ed_5C %>%
   mutate(Sex = "All")
 
 ed_table_race_total
-
 
 ed_table_sex_race_disag <-
   race_disag_ed_5C %>%
@@ -828,7 +829,6 @@ ed_table_sex_total
 names(ed_table_sex_total)
 
 
-
 ed_table_total <-
   disag_ed_1C_total %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
@@ -868,25 +868,29 @@ ed_table_total
 names(ed_table_total)
 
 final_ed_table <-
-bind_rows(
-ed_table_race_total,
-ed_table_sex_race_disag,
-ed_table_sex_total,
-ed_table_total 
-)
+  bind_rows(
+    ed_table_race_total,
+    ed_table_sex_race_disag,
+    ed_table_sex_total,
+    ed_table_total 
+    )
 
 
-View(final_ed_table)
-names(final_ed_table)
+# View(final_ed_table)
+# names(final_ed_table)
+
 final_ed_table %>%
   rename(`High school graduate` = `High school graduate (includes equivalency)`) %>%
   gather(degree, percent, -c(Race, Sex)) %>%
   write_csv(., path = "education_distrbution.csv")
 
-View(final_ed_table)
+# View(final_ed_table)
 
-# Tract Level Education ---------------------------------------------------
-# collapse this as finishing vs not finishing bachelors degrees 
+
+## ...........................
+## Tract Level Education ----
+## collapse this as finishing vs not finishing bachelors degrees 
+
 disag_ed_5B_tract <-
   map_df(c("B15002"),
          ~ get_acs(geography = "tract",
@@ -898,8 +902,7 @@ disag_ed_5B_tract <-
            left_join(acs5 %>% rename(variable = name))
   )
 
-geo_ed <-
-disag_ed_5B_tract %>%
+geo_ed <-disag_ed_5B_tract %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Sex", "Level"), sep = "!!")  %>%
   mutate(Sex = case_when(
@@ -930,8 +933,8 @@ disag_ed_5B_tract %>%
 write_csv(geo_ed, path = "geographic_education.csv")
 
 
-
-# Tract Level School Enrollment ------------------------------------------
+## ...........................
+## Tract Level School Enrollment ----
 
 tract_enroll <- get_acs(geography = "tract", 
                          table = "S1401", 
@@ -941,8 +944,6 @@ tract_enroll <- get_acs(geography = "tract",
                          year = 2019, 
                          cache_table = TRUE)
 
-
-# tract Level School Enrollment Data
 tract_schl_num <- tract_enroll %>% 
   filter(variable %in% c("S1401_C01_014", "S1401_C01_016", "S1401_C01_018", "S1401_C01_020", "S1401_C01_022", "S1401_C01_024")) %>% 
   group_by(GEOID, NAME) %>% 
@@ -965,7 +966,11 @@ tract_schl <- tract_schl_ratio %>%
 
 write_csv(tract_schl, path  = "tract_enroll.csv")
 
-# County School Education Stats -------------------------------------------
+
+## ...........................
+## County School Education Stats ----
+## From 2019-2020Albemarle County Public School State of Division Report
+## and Equity Dashboard: https://docs.google.com/spreadsheets/d/1XvPVsQMzpay8XKsZWHAq5HqK3k1VrSIk/edit#gid=807737922
 
 ## Albemarle Equity Table
 all <- 14318
@@ -1038,9 +1043,10 @@ ap_pct <-
 write_csv(dat_cleaned, "student_data.csv")
 
 
-# Nativity ----------------------------------------------------------------
+## ...........................
+# Nativity -----
 
-# Nativity in 2019
+## Nativity in 2019: B05012
 
 nativity_1B <-
          get_acs(geography = "county",
@@ -1052,8 +1058,7 @@ nativity_1B <-
            left_join(acs1 %>% rename(variable = name)
                      )
 
-nativity <-
-nativity_1B %>%
+nativity <- nativity_1B %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Nativity"), sep = "!!") %>%
   mutate(denom = case_when(is.na(Nativity) ~ estimate,
@@ -1077,8 +1082,7 @@ citizenship_1B <-
   left_join(acs1 %>% rename(variable = name)
   )
 
-citizenship <-
-citizenship_1B %>%
+citizenship <- citizenship_1B %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   separate(label, c("Estimate", "Total", "Citizenship"), sep = "!!") %>%
   mutate(denom = case_when(is.na(Citizenship) ~ estimate,
@@ -1092,8 +1096,7 @@ citizenship_1B %>%
 
 citizenship
 
-# Origin of foreign born
-# B05006
+## Origin of foreign born: B05006
 
 origin_1B <-
   get_acs(geography = "county",
@@ -1105,36 +1108,29 @@ origin_1B <-
   left_join(acs5 %>% rename(variable = name)
   )
 
-
-origin <-
-origin_1B %>%
+origin <- origin_1B %>%
   mutate(label = str_replace_all(label, ":", "")) %>%
   
   separate(label, c("Estimate", "Total", "Continent", "Country"), sep = "!!")  %>%
   filter(!is.na(Continent), is.na(Country)) %>%
   select(Continent, estimate)
   
-
 save(origin, citizenship, nativity, file = "origins.Rda")
 
-# Specific Nativity in 2019 [New Albemarlians. Albemarlites??]
-# Median Household Income -------------------------------------------------
+## Specific Nativity in 2019 [New Albemarlians. Albemarlites??]
+
+
+## ...........................
+## Median Household Income -----
 # https://www.census.gov/data-tools/demo/saipe/#/?map_geoSelector=mhi_s&map_yearSelector=2018&s_year=2018,2009&s_state=51&s_county=51003&s_measures=mhi_snc
+## Look into the Gender Pay Gap <- lesser priority, so paused 
 
 
 
-# Look into the Gender Pay Gap <- lowest priority of anything. 
+## ...........................
+## ALICE data ----
 
-
-
-# Cost of Living ALICE Estimates. We do have that.  -----------------------
-# https://www.unitedforalice.org/virginia
-# url <- "https://www.unitedforalice.org/Attachments/StateDataSheet/DataSheet_VA.xlsx"
-# destfile <- "alice_va.xlsx"
-# download.file(url, destfile)
-
-
-# Stacked Area Chart of Poverty, Alice, + Alice
+## Stacked Area Chart of Poverty, Alice, + Alice
 sheets <- excel_sheets("alice_va.xlsx")
 
 alice_va <- read_excel("alice_va.xlsx", sheet = sheets[2]) %>%
@@ -1142,33 +1138,30 @@ alice_va <- read_excel("alice_va.xlsx", sheet = sheets[2]) %>%
               ) %>%
   filter(geo.id2 == "51003")
 
-alice_alb <-
-alice_va %>%
+alice_alb <- alice_va %>%
   select(year, household, poverty_household, alice_household, above_alice_household) %>%
   gather(level, number, -year, -household) %>%
   mutate(pct = number/household*100 )
   
-
 write_csv(alice_alb, path = "alice_alb_hhs.csv")
 
-# Alice Level & Median HHInc by Race
-# S1901 
-# B19013
 
-#  Household incomes by race. 
-# B190001A-I
+## ...........................
+## Alice & Median HHInc by Race ----
+## S1901, B19013
 
+## Household incomes by race: B190001A-I
 table_list <- c(
-"B19013",
-"B19013A", 
-"B19013B", 
-"B19013C", 
-"B19013D", 
-"B19013E", 
-"B19013F", 
-"B19013G", 
-"B19013H",
-"B19013I"  
+  "B19013",
+  "B19013A", 
+  "B19013B", 
+  "B19013C", 
+  "B19013D", 
+  "B19013E", 
+  "B19013F", 
+  "B19013G", 
+  "B19013H",
+  "B19013I"  
 )
 
 year_list <- seq(2010,2018, 2)
@@ -1184,17 +1177,12 @@ med_hhinc <-
                                year = .y, 
                                cache_table = TRUE)  %>%
    mutate(year = .y)
-
 )
 
-          
+        
+## Alice Threshold vs. Median income 
 
-
-
-# Alice Threshold vs. Median income together. 
-
-alice_hhinc_thresh <-
-med_hhinc %>%
+alice_hhinc_thresh <- med_hhinc %>%
   left_join(acs5 %>% rename(variable = name)) %>%
  separate(concept, c(NA, NA, "race"), sep = "\\(") %>%
   mutate(
@@ -1212,9 +1200,7 @@ alice_va %>%
 
 write_csv(alice_hhinc_thresh, path = "alice_thresh.csv")
 
-# Tract Median Income
-
-
+## Tract Median Income
 tract_med_inc   <- get_acs(geography = "tract", 
                             # table = "S1901", 
                           variable = "S1901_C01_012",
@@ -1227,18 +1213,21 @@ tract_med_inc   <- get_acs(geography = "tract",
 
 write_csv(tract_med_inc, path = "med_inc_tract.csv")
 
-# Gini Index to match Alice at county level ACS1. 
+
+## ...........................
+## Gini Index ----
+## to match Alice at county level ACS1
 gini_index <-
-map_df(seq(2010,2019,1),
-~get_acs(geography = "county", 
-        table = "B19083", 
-        state = "VA", 
-        county = "003", 
-        survey = "acs1", 
-        year = .x, 
-        cache_table = TRUE) %>%
-  mutate(year = .x)
-)
+  map_df(seq(2010,2019,1),
+         ~get_acs(geography = "county", 
+                  table = "B19083", 
+                  state = "VA", 
+                  county = "003", 
+                  survey = "acs1", 
+                  year = .x, 
+                  cache_table = TRUE) %>%
+           mutate(year = .x)
+         )
 
 gini_index_state <-
   map_df(seq(2010,2019,1),
@@ -1264,16 +1253,12 @@ gini_index_us <-
 gini_index_all <- bind_rows(gini_index, gini_index_state, gini_index_us)
 
 write_csv(gini_index, path = "gini_index.csv")
-
 write_csv(gini_index_all, path = "gini_index_all.csv")
 
 
-# Cost Burdened Renters ---------------------------------------------------
-
-# Cost Burdened Renters
-# B25074 or
-# B25070
-# B19051 is total housing
+## ...........................
+## Cost Burdened ----
+## B25074 or B25070; B19051 is total housing
 
 county_housing_total <- get_acs(geography = "county", 
                                variable = "B19051_001", 
@@ -1314,9 +1299,9 @@ tract_housing_cost <- get_acs(geography = "tract",
                                year = 2019, 
                                cache_table = TRUE)
 
-# County level stats. 
+## County level stats 
 county_housing <-
-county_housing_cost %>%
+  county_housing_cost %>%
   left_join(acs1 %>% rename(variable = name)) %>%
   separate(label, c(NA, "Total", "level"), sep = "!!")  %>%
   mutate(level = case_when(is.na(level) ~ "Total",
@@ -1343,10 +1328,9 @@ county_housing_cost %>%
   left_join(county_housing_total) %>%
   mutate(across(c(Burdened, `Severely Burdened`, `Not Burdened`), ~.x/denom), `Renting` = total_renting/total_households) 
 
-
-# Tract level stats. 
+## Tract level stats 
 albemarle_housing_costs <- 
-tract_housing_cost %>%
+  tract_housing_cost %>%
   left_join(acs1 %>% rename(variable = name)) %>%
   separate(label, c(NA, "Total", "level"), sep = "!!")  %>%
   mutate(level = case_when(is.na(level) ~ "Total",
@@ -1375,12 +1359,4 @@ tract_housing_cost %>%
 
 write_csv(albemarle_housing_costs, path = "housing_costs.csv")
   
-View(albemarle_housing_costs)
-
-
-# SNAP Retail  ---------------------------------------------------
-
-
-
-
-
+# View(albemarle_housing_costs)

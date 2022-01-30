@@ -1,20 +1,19 @@
-## ---------------------------
+## ...........................
 ## Script name: ahdi_visuals.R
 ##
-## Author:Sam Powers
+## Author: Michele Claibourn, Sam Powers
 ## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Analysis and visuals for AHDI section 
 ##
-## ---------------------------
-## Purpose of script: Albemarle Equity Profile Visuals for ahdi
-##   
-##
-## ---------------------------
+## ...........................
 ## set working directory
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+setwd("data")
 
-## ---------------------------
-## load up the packages we will need:
+## ...........................
+## load packages ----
 
 library(tidyverse)
 library(ggforce) # for 'geom_arc_bar'
@@ -23,20 +22,22 @@ library(ggnewscale)
 library(scales)
 library(tigris)
 library("ggspatial")
+library(reactable)
 
-select <- dplyr::select
+options(scipen = 6, digits = 4) # to view outputs in non-scientific notation
+select <- dplyr::select # avoid function name conflicts
 
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-# Pal
+## ...........................
+## set palettes ----
 bupu <- c("#edf8fb", "#b3cde3", "#8c96c6", "#8856a7") # bupu (1-4/4)
 hlth_colors <- c("#fff5f0", "#fc9272") # colorbrewer Reds 1,4/9
 educ_colors <- c("#fee6ce", "#f16913") # colorbrewer Oranges 2,6/9
 inc_colors <- c("#e5f5e0", "#238b45") # colorbrewer Greens 2,7/9
 
 
-# AHDI Table  --------------------------------------------------------------
-library(reactable)
+## ...........................
+# AHDI Table ----
 
 ahdi_table <- read_csv("ahdi_table.csv") %>%
   mutate(
@@ -124,7 +125,6 @@ ahdi_table_output
 # SO says saveWidget from htmlwidgets and webshot from webshot
 # but this isn't working for me...
 
-
 library("htmlwidgets")
 library("webshot2")
 
@@ -135,15 +135,14 @@ saveWidget(widget = ahdi_table_output, file = html_file, selfcontained = TRUE)
 webshot(url = html_file, file = img_file, delay = 0.1, vwidth = 1245)
 
 
+## ...........................
+## AHDI Tract Map ----
 
-### AHDI Tract Viz ----------------------------------------------------------
-
-# Tract Data --------------------------------------------------------------
-
-tract_names <- read_csv("data/tract_names.csv") %>%
+## Tract Data 
+tract_names <- read_csv("tract_names.csv") %>%
   select(-contains("X"))
 
-tract_ahdi <- read_csv("data/tract_ahdi.csv") %>%
+tract_ahdi <- read_csv("tract_ahdi.csv") %>%
   rename_with(~tolower(.x))  %>%
   left_join(tract_names)
 
@@ -197,9 +196,8 @@ ahdi_map_gg
 dev.off()
 
 
-
-# Tract Level AHDI Components ---------------------------------------------
-
+## ...........................
+## Tract Level AHDI Components ----
 
 tract_ahdi_graph_prep <-
   tract_ahdi %>%
@@ -236,18 +234,17 @@ tract_ahdi_graph <-
            )
   )
 
-# Make the county line labeller
+## Make the county line labeller
 ahdi_alb <- ahdi_table[ahdi_table$county == "Albemarle", c("ahdi_ed", "ahdi_income", "ahdi_health", "ahdi")]
 names(ahdi_alb) <- c("Education", "Income", "Health", "Composite")
 
-# Make the color pallette
+## Make the color pallette
 composite_pal <- c(
   hlth_colors[2],
   educ_colors[2],
   inc_colors[2],
   bupu[4]
 )
-
 
 ## Dot plot option
 ahdi_dots_function <- function(input){
@@ -315,7 +312,7 @@ component_vec <- c("Health", "Income", "Education", "Composite")
 
 for (component in component_vec) {
   
-  jpeg(filename = paste0("/Users/samuelpowers/Box Sync/Demo of Data Initiative/Albemarle Cty Equity Profile/final_graphs pal3/ahdi/ahdi_dots_just_", component,".jpg"),
+  jpeg(filename = paste0("../final_graphs/ahdi/ahdi_dots_just_", component,".jpg"),
        height = 30*72, width = 30*72,
        units = 'px', res = 300)
   
@@ -324,8 +321,4 @@ for (component in component_vec) {
   dev.off()
   
 }
-
-
-
-
 

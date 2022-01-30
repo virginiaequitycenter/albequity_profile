@@ -1,64 +1,67 @@
-## ---------------------------
+## ...........................
 ## Script name: health_visuals.R
 ##
-## Author:Sam Powers
+## Author: Michele Claibourn, Sam Powers
 ## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Analysis and visuals for health section 
 ##
-## ---------------------------
-## Purpose of script: Albemarle Equity Profile Visuals for ahdi
-##   
-##
-## ---------------------------
+## ...........................
 ## set working directory
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+setwd("data")
 
-## ---------------------------
-## load up the packages we will need:
+## ...........................
+## load packages ----
 
 library(tidyverse)
+library(readxl)
 library(ggforce) # for 'geom_arc_bar'
 library(RColorBrewer)
 library(ggnewscale)
 library(scales)
 library(tigris)
 library("ggspatial")
-#devtools::install_github("liamgilbey/ggwaffle")
+# devtools::install_github("liamgilbey/ggwaffle")
 library(ggwaffle)
-#  install.packages("emojifont")
+# install.packages("emojifont")
 library(emojifont)
 library(ggpubr)
 
-select <- dplyr::select
+options(scipen = 6, digits = 4) # to view outputs in non-scientific notation
+select <- dplyr::select # avoid function name conflicts
 summarize <- dplyr::summarize
 
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
-# Health Color Theme ----------------------------------------------------------
+## ...........................
+## set palettes ----
 
-# Pal 1
-hlth_colors <- c("#f0dbe2", "#b02c58")
+## Pal 1
+# hlth_colors <- c("#f0dbe2", "#b02c58")
 
-# Pal 2
-hlth_colors <- c("#dfdcce", "#c23617")
+## Pal 2
+# hlth_colors <- c("#dfdcce", "#c23617")
 
-# Pal 3
+## Pal 3
 hlth_colors <- c("#f0dbe2", "#b02c58")
 
 hlth_pal <- function(x) rgb(colorRamp(hlth_colors)(x), maxColorValue = 255) 
 
 
-# Life Expectancy ---------------------------------------------------------
+## ...........................
+## Life Expectancy ----
+
 tract_names <- read_csv("tract_names.csv") %>%
   select(-contains("X"))
 
+tract_ahdi <- read_csv("tract_ahdi.csv")
 
-life_exp <- read_csv("tract_ahdi.csv") %>%
+life_exp <- tract_ahdi %>%
   rename_with(~ tolower(.x))  %>%
   left_join(tract_names) %>%
   select(geoid, keypoints, life_exp) %>%
   mutate(geo = "Census Tract") %>%
-  
   bind_rows(
     read_csv("race_exp.csv") %>%
       select(
@@ -69,8 +72,6 @@ life_exp <- read_csv("tract_ahdi.csv") %>%
       mutate(
         geo = case_when(keypoints == "total" ~ "Overall",
                         TRUE ~ "Race/Ethnicity"),
-        
-        
         keypoints = case_when(
           keypoints == "total" ~ "Albemarle County",
           TRUE ~ str_to_sentence(keypoints)
@@ -80,7 +81,6 @@ life_exp <- read_csv("tract_ahdi.csv") %>%
   ) %>%
   mutate(geo = factor(geo,
                       levels = c("Overall", "Race/Ethnicity", "Census Tract"))
-         
   ) %>%
   filter(!is.na(life_exp)) %>%
   mutate(plot_exp = life_exp  - 83,
@@ -94,9 +94,7 @@ life_exp <- read_csv("tract_ahdi.csv") %>%
            plot_exp < 0 ~ "neg",
            plot_exp > 0 ~ "pos"
          )
-         
   )
-
 
 life_exp
 
@@ -104,7 +102,6 @@ life_pal <- hlth_pal( seq(0, 1, length = 5))
 
 life_exp_graph  <-
   ggplot(life_exp) +
-  
   geom_segment(
     aes(xend = plot_exp, x = 0, y = reorder(keypoints, life_exp), yend = keypoints),
     size = 1
@@ -159,11 +156,11 @@ life_exp_graph
 dev.off()
 
 
-# Life Expectancy 2.0 -----------------------------------------------------
+## ...........................
+## Life Expectancy 2.0 ----
+## Not used
+
 life_expectancy_load <- read_excel("health_rankings.xlsx", sheet = 5, skip = 1) 
-
-
-unique(life_expectancies$ci)
 
 life_expectancies <-
   life_expectancy_load %>% 
@@ -173,19 +170,16 @@ life_expectancies <-
   gather(label, number, -fips, -state, -county) %>%
   separate(label, c("label", "demographic"), sep = "\\(") %>%
   separate(demographic, c("demographic", "ci"), sep = "\\)") %>%
-  
   mutate(demographic = str_replace_all(demographic, "\\)", ""),
          demographic = case_when(
            is.na(demographic) ~ "total",
            TRUE ~ demographic 
          ),
-         
          ci = str_replace_all(ci, "_95%_ci_-_", ""),
          ci = case_when(
            ci %in% c("low", "high") ~ ci,
            TRUE ~ "mean"
          )
-         
   ) %>%
   select(-label) %>%
   filter(county %in% c("Albemarle")) %>%
@@ -194,30 +188,25 @@ life_expectancies <-
     demo = case_when(demographic == "total" ~ "Overall",
     TRUE ~ "Race/Ethnicity"
     ),
-
       demographic = case_when(
         demographic == "total" ~ "Albemarle County",
         TRUE ~ str_to_sentence(demographic)
       )
-    
   ) %>%
   filter(!is.na(mean))
   
-
 life_expectancies
 
 life_pal <- hlth_pal( seq(0, 1, length = 5))
 
 life_exp_graph  <-
   ggplot(life_expectancies) +
-  
   geom_segment(
     aes(xend = low, x = high, y = reorder(demographic, mean), yend = demographic),
     size = 3,
     color = life_pal[5],
     alpha = .7
   ) +
-  
   geom_segment(
     aes(xend = mean - .05,
         x = mean + .05,
@@ -226,15 +215,11 @@ life_exp_graph  <-
     ),
     size = 4
   )  +
-  
   geom_text(aes(x = mean , y = demographic, label =  round(mean, 1) ),
             hjust = .5, vjust = -1) +
-  
   scale_x_continuous( limits = c(62, 103), breaks = seq(65, 100, 5) ) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
-  
   geom_vline(xintercept = 83) +
-  
   labs( x = "Average Life Expectancy", y = "", title = "Albemarle County Life Expectancy") +
   coord_cartesian(clip = "off") +
   theme_classic() +
@@ -254,26 +239,20 @@ life_exp_graph  <-
     strip.placement = "outside",
     strip.text.y = element_text(face = "bold"),
     strip.text.x = element_text(face = "bold")
-    
   ) +
-  
   facet_grid(demo ~ . ,  switch = "y", scales = "free",  space = "free_y")
-
 
 life_exp_graph
 
 
-
-
-# Life Expectancy Map -----------------------------------------------------
-
+## ...........................
+# Life Expectancy Map ----
 
 alb_tract <- tracts(state = "VA", county = "003" )
 
 ahdi_map <-
   alb_tract %>%
-  left_join(tract_ahdi %>% mutate(GEOID = as.character(geoid)))
-
+  left_join(tract_ahdi %>% mutate(GEOID = as.character(GEOID)))
 
 life_exp_map_gg <-
   ggplot(ahdi_map) +
@@ -287,8 +266,6 @@ life_exp_map_gg <-
     aesthetics = "fill",
     n.breaks = 8
     ) +
-    
-
   theme_void() +
   guides(fill =
            guide_colourbar(title.position="top", title.hjust = 0.5,
@@ -318,7 +295,6 @@ life_exp_map_gg <-
                                 fill = NA,
                                 size = 1),
     plot.margin = margin(l =  .1, r = .1, t = 1, b =1, "cm")
-    
   )
 
 jpeg(filename = "../final_graphs/health/life_exp_map.jpg", height = 40*72, width = 40*72, units = 'px', res = 300)
@@ -328,10 +304,8 @@ life_exp_map_gg
 dev.off()
 
 
-
-# Food Insecurity  --------------------------------------------------------------
-
-
+## ...........................
+# Food Insecurity ----
 # Alternatively: https://github.com/hrbrmstr/waffle/
 
 waffle_pal <-  hlth_pal( seq(0, 1, length = 5))[c(5,2)]
@@ -403,4 +377,3 @@ jpeg(filename = "../final_graphs/health/food_insecure_icon.jpg", height = 20*72,
 picon
 
 dev.off()
-

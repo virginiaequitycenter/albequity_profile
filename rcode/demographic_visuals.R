@@ -1,20 +1,19 @@
-## ---------------------------
+## ...........................
 ## Script name: demographic_visuals.R
 ##
-## Author:Sam Powers
+## Author: Michele Claibourn, Sam Powers
 ## Date Created: 2021-02-02
+## Updated: 2022-01-28 mpc
+## Purpose: Analysis and visuals for demographic section 
 ##
-## ---------------------------
-## Purpose of script: Albemarle Equity Profile Visuals for Demographics
-##   
-##
-## ---------------------------
+## ...........................
 ## set working directory
 
-setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+# setwd("/Volumes/GoogleDrive/My Drive/Equity Center/Github/albequity_profile/data")
+setwd("data")
 
-## ---------------------------
-## load up the packages we will need:
+## ...........................
+## load packages ----
 
 library(tidyverse)
 library(readxl)
@@ -25,13 +24,14 @@ library(ggnewscale)
 library(scales)
 library("ggspatial")
 
-select <- dplyr::select
+options(scipen = 6, digits = 4) # to view outputs in non-scientific notation
+select <- dplyr::select # avoid function name conflicts
 
-options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
 
+## ...........................
+## read in data ----
 
-## ---------------------------
-## read in demographic data:
+## ACS data
 alb_dems <- read_csv("demographic_table.csv") %>%
   mutate(
     category =
@@ -46,29 +46,29 @@ alb_dems <- read_csv("demographic_table.csv") %>%
   ) %>%
   filter(!final_level == "Total population")
 
-
-### Race --------------------------------------------------------------------
-
-# Historical race over time ----------------------------------------------
+## Historical race data
 race_dec <- read_excel("albco_profile_raceovertime.xlsx")
 
-race_dec <- race_dec %>% 
-  filter(year != 2019)
 
+## ...........................
+## Race visuals ----
+
+## Historical race figure
 race_dec_long <- race_dec %>% 
+  #filter(year < 2019) %>% 
   select(-c(white_per, nonwhite_per)) %>% 
   pivot_longer(-c(year, total_wcc, total_se), names_to = "poptype", values_to = "pop") %>% 
   mutate(pop_percent = round((pop/total_se)*100,1),
          poptype = fct_recode(poptype, 
-                              "White Population" = "white_se",
-                              "Population of Color" = "nonwhite_se"))
+                              "White" = "white_se",
+                              "Not White" = "nonwhite_se"))
 
 dec_pal <- brewer.pal(5, "BuPu")[c(2,5)]
 
 p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
   geom_line(size = 1) +
   scale_y_continuous(limits = c(0,100)) +
-  scale_x_continuous(breaks = seq(1790,2010,10)) +
+  scale_x_continuous(breaks = seq(1790,2020,10)) +
   scale_color_manual(values = dec_pal) +
   theme_classic() +
   labs(x="Year", y="Population %", title = "", color = "") +
@@ -79,26 +79,30 @@ p <- ggplot(race_dec_long, aes(x = year, y = pop_percent, color = poptype)) +
     axis.text.x = element_text(angle = 45, vjust = 0.5)
   )
 
-jpeg(filename = "../final_graphs pal3/demographics/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+jpeg(filename = "../final_graphs/demographics/race_1790_2010.jpg", height = 20*72, width = 20*72, units = 'px', res = 300)
+#jpeg(filename = "../final_graphs/race_1790_2020.jpg", height = 20*72, width = 20*72, units = "px", res = 300)
 
 p
 
 dev.off()
 
 
-# Race Without White ------------------------------------------------------
+## ...........................
+## Change in Race Composition ----
 
 race_trends_poc <-
   alb_dems %>%
   filter(category == "RACE" & final_level != "White")
 
-race_trends_poc$final_level <- factor(race_trends_poc$final_level, levels = rev(c("Black or African American",
-                                                                                  "Asian",
-                                                                                  "American Indian and Alaska Native",
-                                                                                  "Native Hawaiian and Other Pacific Islander",
-                                                                                  "Two or more races",
-                                                                                  "Some other race"))
-)
+race_trends_poc$final_level <- 
+  factor(race_trends_poc$final_level, 
+         levels = rev(c("Black or African American",
+                        "Asian",
+                        "American Indian and Alaska Native",
+                        "Native Hawaiian and Other Pacific Islander",
+                        "Two or more races",
+                        "Some other race"))
+         )
 
 race_trends_poc <-
   race_trends_poc %>%
@@ -173,9 +177,8 @@ race_trends2
 dev.off()
 
 
-
-
-# 2010 & 2019 Age ---------------------------------------------------------
+## ...........................
+## 2010 & 2019 Age ----
 
 life_table_nums <-
   alb_dems %>%
@@ -254,7 +257,9 @@ year_age
 dev.off()
 
 
-# Age by Sex --------------------------------------------------------------
+## ...........................
+# Age by Sex ----
+
 sex_age <- read_csv("sex_age.csv") %>%
   mutate(
     age_group = factor(age_group, levels = c(
@@ -323,7 +328,10 @@ sex_age_graph
 
 dev.off()
 
-# Nativity ----------------------------------------------------------------
+
+## ...........................
+# Nativity ----
+
 load("origins.Rda")
 
 # Citizenship and place of birth
@@ -360,7 +368,9 @@ p
 dev.off()
 
 
-# Origin of New Residents -------------------------------------------------
+## ...........................
+## Origin of New Residents ----
+
 origin <- origin %>%
   mutate(fraction = estimate/sum(estimate),
          pct = round(fraction*100,1),
@@ -385,9 +395,3 @@ jpeg(filename = "../final_graphs/demographics/origin.jpg", height = 20*72, width
 p
 
 dev.off()
-
-
-
-
-
-
