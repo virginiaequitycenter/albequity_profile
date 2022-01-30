@@ -2,7 +2,7 @@
 Data and visuals for the albemarle equity profile.
 
 ## About
-Created by Michele Claibourn and Sam Powers. The work in this repo generated the data, analysis, and visuals for the Albemarle County Equity Profile. We are making the analysis underscoring the report available so that others might learn from it, use it, and improve it. We ask that you give us appropriate attribution if you use or build on this code.
+Created by Michele Claibourn and Sam Powers. The work in this repo generated the data, analysis, and visuals for the Albemarle County Equity Profile. We are making the analysis underscoring the report available so that others might learn from it, use it, and improve it. We ask that you give attribution if you use or build on this code.
 
 The output of this repo are presented in the Albemarle County Equity Profile:
 
@@ -13,7 +13,7 @@ The output of this repo are presented in the Albemarle County Equity Profile:
 
 * rcode: scripts that acquire and wrangle data sources, exporting data files to the data folder; that read the processed data in from the data folder and generate visualizations, exporting image files to the final_graphs folder
 * data: data files pulled and saved within the R scripts
-* final_graphs:
+* final_graphs: figures created in the R scripts
 * webstory: files that generate the online version of key results
 * docs: contains the rendered R markdown file to publish online
 * albco_profile_figures.xlsx: table outlining figures for inclusion in report
