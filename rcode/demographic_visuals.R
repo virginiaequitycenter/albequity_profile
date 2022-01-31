@@ -1,7 +1,7 @@
 ## ...........................
 ## Script name: demographic_visuals.R
 ##
-## Author: Michele Claibourn, Sam Powers
+## Authors: Michele Claibourn, Sam Powers
 ## Date Created: 2021-02-02
 ## Updated: 2022-01-28 mpc
 ## Purpose: Analysis and visuals for demographic section 

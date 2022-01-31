@@ -1,7 +1,7 @@
 ## ...........................
 ## Script name: education_visuals.R
 ##
-## Author: Michele Claibourn, Sam Powers
+## Authors: Sam Powers, Michele Claibourn
 ## Date Created: 2021-02-02
 ## Updated: 2022-01-28 mpc
 ## Purpose: Analysis and visuals for education section 

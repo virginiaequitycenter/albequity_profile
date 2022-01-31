@@ -1,7 +1,7 @@
 ## ...........................
 ## Script name: data_sources.R
 ##
-## Author: Michele Claibourn, Sam Powers
+## Authors: Sam Powers, Michele Claibourn
 ## Date Created: 2020-12-10
 ## Updated: 2022-01-28 mpc
 ## Purpose: Compile relevant data sources for the albemarle equity profile 

@@ -1,7 +1,7 @@
 ## ...........................
 ## Script name: profile_visuals.R
 ##
-## Author: Michele Claibourn, Sam Powers
+## Authors: Michele Claibourn, Sam Powers
 ## Date Created: 2021-01-04
 ## Updated: 2022-01-28 mpc
 ## Purpose: Combine analysis and visuals code for the albemarle equity profile

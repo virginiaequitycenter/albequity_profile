@@ -1,7 +1,7 @@
 ## ...........................
 ## Script name: snap_datas.R
 ##
-## Author: Michele Claibourn, Sam Powers
+## Author: Michele Claibourn
 ## Date Created: 2021-02-02
 ## Updated: 2022-01-28 mpc
 ## Purpose: Analysis and visuals for health section 
