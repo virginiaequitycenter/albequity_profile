@@ -29,18 +29,22 @@ select <- dplyr::select # avoid function name conflicts
 ## Initial download
 ## County Level Life Expectancy:  https://www.countyhealthrankings.org/app/virginia/2020/measure/outcomes/147/data
 # url <- "https://www.countyhealthrankings.org/sites/default/files/media/document/2020%20County%20Health%20Rankings%20Virginia%20Data%20-%20v1_0.xlsx"
-# destfile <- "health_rankings.xlsx"
+# destfile <- "data/health_rankings.xlsx"
+# download.file(url, destfile)
+
+## US Level Life Expectancy: https://www.countyhealthrankings.org/sites/default/files/media/document/analytic_data2020_0.csv
+# url <- "https://www.countyhealthrankings.org/sites/default/files/media/document/analytic_data2020_0.csv"
+# destfile <- "data/health_analytic_data2020.csv"
 # download.file(url, destfile)
 
 ## Tract Level Life Expectancy: https://www.cdc.gov/nchs/nvss/usaleep/usaleep.html <- use this for life expectancy for the tract disaggregated AHDI
 # url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/XLSX/VA_A.XLSX"
-# destfile <- "tract_expectancy.xlsx"
+# destfile <- "data/tract_expectancy.xlsx"
 # download.file(url, destfile)
 
-## ALICE cost of living and estimates
-# https://www.unitedforalice.org/virginia
+## ALICE cost of living and estimates: https://www.unitedforalice.org/virginia
 # url <- "https://www.unitedforalice.org/Attachments/StateDataSheet/DataSheet_VA.xlsx"
-# destfile <- "alice_va.xlsx"
+# destfile <- "data/alice_va.xlsx"
 # download.file(url, destfile)
 
 
